@@ -232,6 +232,10 @@ public class SettingsPage : UserControl, IRefreshable
         auto.Checked += (_, _) => { Store.Settings.AutoUpdateCheck = true; Store.SaveSettings(); };
         auto.Unchecked += (_, _) => { Store.Settings.AutoUpdateCheck = false; Store.SaveSettings(); };
         sp.Children.Add(auto);
+        var inst = new CheckBox { Style = UI.Res<Style>("Check"), Content = UI.Text("Install updates automatically (never during a game)", 12.5, "Sub"), IsChecked = Store.Settings.AutoInstallUpdates, Margin = new Thickness(0, 6, 0, 0) };
+        inst.Checked += (_, _) => { Store.Settings.AutoInstallUpdates = true; Store.SaveSettings(); };
+        inst.Unchecked += (_, _) => { Store.Settings.AutoInstallUpdates = false; Store.SaveSettings(); };
+        sp.Children.Add(inst);
         if (Updater.Available != null) ShowAvailable(Updater.Available);
         return sp;
     }

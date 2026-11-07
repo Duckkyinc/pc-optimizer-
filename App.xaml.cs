@@ -32,7 +32,18 @@ public partial class App : Application
     static void CloseOtherCopies()
     {
         try { using var exit = new EventWaitHandle(false, EventResetMode.AutoReset, @"Global\PCOptimizer.Exit"); exit.Set(); } catch { }
-        Thread.Sleep(1500);
+        // wait only as long as needed (up to 1.5 s) for the old copy to close by itself
+        for (int i = 0; i < 15; i++)
+        {
+            bool others = false;
+            foreach (var p in System.Diagnostics.Process.GetProcesses())
+            {
+                try { if (p.Id != Environment.ProcessId && SelfInstall.IsOurProcess(p.ProcessName)) others = true; } catch { }
+                finally { p.Dispose(); }
+            }
+            if (!others) break;
+            Thread.Sleep(100);
+        }
         foreach (var p in System.Diagnostics.Process.GetProcesses())
         {
             try

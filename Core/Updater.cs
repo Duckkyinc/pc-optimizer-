@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -38,6 +39,7 @@ public static class Updater
 
     public static Version Current => Version.TryParse(App.VersionText, out var v) ? v : new Version(0, 0, 0);
     public static Release Available { get; private set; }
+    static string _etag;
     public static event Action Found;
 
     static Version ParseTag(string tag)
@@ -57,9 +59,15 @@ public static class Updater
     /// <summary>Returns the latest release if it's newer than this build, otherwise null.</summary>
     public static async Task<Release> CheckAsync()
     {
-        using var resp = await Http.GetAsync($"https://api.github.com/repos/{Owner}/{Repo}/releases/latest");
+        // Conditional request: if nothing changed GitHub answers 304, which doesn't count against its rate limit.
+        // That's what lets the app check every few seconds.
+        using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest");
+        if (_etag != null) req.Headers.TryAddWithoutValidation("If-None-Match", _etag);
+        using var resp = await Http.SendAsync(req);
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotModified) return Available;
         if ((int)resp.StatusCode == 404) throw new Exception("No releases published yet.");
         resp.EnsureSuccessStatusCode();
+        _etag = resp.Headers.ETag?.ToString();
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
         var root = doc.RootElement;
         string tag = root.GetProperty("tag_name").GetString();
@@ -99,7 +107,7 @@ public static class Updater
     {
         Task.Run(async () =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(20));
+            await Task.Delay(TimeSpan.FromSeconds(3));
             while (true)
             {
                 try
@@ -107,36 +115,87 @@ public static class Updater
                     if (Store.Settings.AutoUpdateCheck && await CheckAsync() is Release r)
                     {
                         Store.Log($"Update available: {r.Tag}");
-                        Found?.Invoke();
+                        if (Store.Settings.AutoInstallUpdates) await AutoInstall(r);
+                        else Found?.Invoke();
                     }
                 }
                 catch (Exception ex) { Store.Log("Update check: " + ex.Message); }
-                await Task.Delay(TimeSpan.FromHours(6));
+                await Task.Delay(TimeSpan.FromSeconds(Busy ? 60 : 10)); // unchanged checks are free (304), so poll fast
             }
         });
+    }
+
+    /// <summary>Downloads in the background right away, then installs as soon as no game is running.</summary>
+    static bool Busy;
+    static async Task AutoInstall(Release r)
+    {
+        if (Busy) return;
+        Busy = true;
+        try
+        {
+            var exe = await DownloadAsync(r, null);
+            while (BoostMode.ActiveGame != null) await Task.Delay(TimeSpan.FromSeconds(15)); // never restart mid-match
+            Tray.Notify("Updating PC Optimizer", $"Installing {Label(r)}. Back in a few seconds.");
+            Launch(r, exe);
+        }
+        catch { Busy = false; throw; }
     }
 
     /// <summary>Downloads the release and starts it. The new version replaces this one and restarts the app.</summary>
     public static async Task InstallAsync(Release r, IProgress<double> progress)
     {
+        var exe = await DownloadAsync(r, progress);
+        Launch(r, exe);
+    }
+
+    static string _downloadedFor, _downloadedExe;
+
+    /// <summary>Downloads (4 connections in parallel when the server allows it) and returns the path to the new .exe.</summary>
+    public static async Task<string> DownloadAsync(Release r, IProgress<double> progress)
+    {
+        if (_downloadedFor == r.AssetUrl && File.Exists(_downloadedExe)) { progress?.Report(1); return _downloadedExe; }
         var dir = Path.Combine(Path.GetTempPath(), "PCOptimizer-update");
         try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
         Directory.CreateDirectory(dir);
         var file = Path.Combine(dir, r.AssetName);
 
-        using (var resp = await Http.GetAsync(r.AssetUrl, HttpCompletionOption.ResponseHeadersRead))
+        // GitHub redirects release downloads to its CDN; resolve once so every chunk goes straight there.
+        using var head = await Http.GetAsync(r.AssetUrl, HttpCompletionOption.ResponseHeadersRead);
+        head.EnsureSuccessStatusCode();
+        var url = head.RequestMessage?.RequestUri?.ToString() ?? r.AssetUrl;
+        long total = head.Content.Headers.ContentLength ?? r.Size;
+        bool ranges = head.Headers.AcceptRanges.Contains("bytes") && total > 4_000_000;
+        long done = 0;
+        void Add(int n) { var d = Interlocked.Add(ref done, n); if (total > 0) progress?.Report(Math.Min(1, (double)d / total)); }
+
+        if (!ranges)
         {
-            resp.EnsureSuccessStatusCode();
-            long total = resp.Content.Headers.ContentLength ?? r.Size;
-            await using var src = await resp.Content.ReadAsStreamAsync();
+            await using var src = await head.Content.ReadAsStreamAsync();
             await using var dst = File.Create(file);
-            var buf = new byte[1 << 16]; long done = 0; int n;
-            while ((n = await src.ReadAsync(buf)) > 0)
+            var buf = new byte[1 << 17]; int n;
+            while ((n = await src.ReadAsync(buf)) > 0) { await dst.WriteAsync(buf.AsMemory(0, n)); Add(n); }
+        }
+        else
+        {
+            head.Dispose(); // don't read the first response; download in parts instead
+            using (var fs = new FileStream(file, FileMode.Create, FileAccess.Write, FileShare.ReadWrite)) fs.SetLength(total);
+            const int parts = 4;
+            long size = (total + parts - 1) / parts;
+            await Task.WhenAll(Enumerable.Range(0, parts).Select(async i =>
             {
-                await dst.WriteAsync(buf.AsMemory(0, n));
-                done += n;
-                if (total > 0) progress?.Report((double)done / total);
-            }
+                long from = i * size, to = Math.Min(total, from + size) - 1;
+                if (from > to) return;
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(from, to);
+                using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+                resp.EnsureSuccessStatusCode();
+                await using var src = await resp.Content.ReadAsStreamAsync();
+                await using var dst = new FileStream(file, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+                dst.Position = from;
+                var buf = new byte[1 << 17]; int n;
+                while ((n = await src.ReadAsync(buf)) > 0) { await dst.WriteAsync(buf.AsMemory(0, n)); Add(n); }
+            }));
+            if (new FileInfo(file).Length != total) throw new Exception("The download didn't finish. Try again.");
         }
 
         string exe = file;
@@ -148,12 +207,16 @@ public static class Updater
                   ?? throw new Exception("The downloaded zip has no .exe inside.");
         }
         if (new FileInfo(exe).Length < 5_000_000) throw new Exception("The download looks incomplete. Try again.");
+        _downloadedFor = r.AssetUrl; _downloadedExe = exe;
+        return exe;
+    }
 
+    /// <summary>Starts the new build and exits right away. The new build installs itself and opens.</summary>
+    static void Launch(Release r, string exe)
+    {
         Store.Log($"Starting update {r.Tag} from {exe}");
         Store.Settings.InstalledReleaseId = r.Id; Store.SaveSettings(); // so the new version doesn't offer this same release again
         Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(exe) });
-        // The new build closes this copy, installs itself and restarts. Exit anyway in case it can't signal us.
-        await Task.Delay(8000);
-        System.Windows.Application.Current?.Dispatcher.Invoke(() => System.Windows.Application.Current.Shutdown());
+        System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => System.Windows.Application.Current.Shutdown());
     }
 }
