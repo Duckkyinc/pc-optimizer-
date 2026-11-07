@@ -1,0 +1,76 @@
+<Window x:Class="Overdrive.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PC Optimizer" Width="1240" Height="800" MinWidth="1000" MinHeight="640"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
+        Background="{StaticResource Bg}" Icon="overdrive.ico" UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="ClearType" TextOptions.TextHintingMode="Fixed" RenderOptions.ClearTypeHint="Enabled" SnapsToDevicePixels="True">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Grid x:Name="Root">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= sidebar ================= -->
+        <Border Background="{StaticResource Side}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="24,24,0,20">
+                    <Image Source="logo.png" Width="34" Height="34" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="PC OPTIMIZER" FontSize="19" FontWeight="Black" Foreground="{StaticResource AccentGrad}"/>
+                        <TextBlock Text="GAMES · WINDOWS · NETWORK" FontSize="9" FontWeight="Bold" Foreground="{StaticResource Dim}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border DockPanel.Dock="Bottom" Margin="14,0,14,16" CornerRadius="12" Background="#121722" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="14,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="BoostDot" Width="8" Height="8" Fill="{StaticResource Dim}" Margin="0,0,8,0"/>
+                            <TextBlock Text="GAME BOOST" Style="{StaticResource Label}"/>
+                        </StackPanel>
+                        <TextBlock x:Name="BoostText" Text="Off" FontSize="12" Foreground="{StaticResource Sub}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <RadioButton DockPanel.Dock="Bottom" Style="{StaticResource NavButton}" Tag="&#xE713;" Content="Settings" x:Name="NavSettings" Checked="Nav_Checked" Margin="10,0,10,8"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel x:Name="Nav">
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE80F;" Content="Home" x:Name="NavDashboard" Checked="Nav_Checked" IsChecked="True"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE7FC;" Content="Games" x:Name="NavGames" Checked="Nav_Checked"/>
+                    <TextBlock Text="OPTIMIZE" Style="{StaticResource NavGroup}"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE770;" Content="Windows" x:Name="NavWindows" Checked="Nav_Checked"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE7F4;" Content="GPU" x:Name="NavGpu" Checked="Nav_Checked"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE701;" Content="Network" x:Name="NavNetwork" Checked="Nav_Checked"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE74D;" Content="Cleanup" x:Name="NavCleanup" Checked="Nav_Checked"/>
+                    <TextBlock Text="TEST &amp; TRACK" Style="{StaticResource NavGroup}"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE9D9;" Content="FPS Monitor" x:Name="NavPerf" Checked="Nav_Checked"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xEC4A;" Content="Benchmark" x:Name="NavBench" Checked="Nav_Checked"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE7BE;" Content="Pro Lab" x:Name="NavLab" Checked="Nav_Checked"/>
+                    <TextBlock Text="TOOLS" Style="{StaticResource NavGroup}"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE962;" Content="Aim" x:Name="NavAim" Checked="Nav_Checked"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE71D;" Content="Apps" x:Name="NavApps" Checked="Nav_Checked"/>
+                </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- ================= content ================= -->
+        <Grid Grid.Column="1">
+            <ContentControl x:Name="Page" Focusable="False"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button Style="{StaticResource ChromeButton}" Click="Min_Click" ToolTip="Minimize">
+                    <Path Data="M0,0 L10,0" Stroke="{StaticResource Sub}" StrokeThickness="1" SnapsToDevicePixels="True" Width="10" Height="1"/>
+                </Button>
+                <Button Style="{StaticResource ChromeButton}" Click="Max_Click" x:Name="MaxBtn" ToolTip="Maximize">
+                    <Path x:Name="MaxIcon" Data="M0.5,0.5 L9.5,0.5 L9.5,9.5 L0.5,9.5 Z" Stroke="{StaticResource Sub}" StrokeThickness="1" SnapsToDevicePixels="True" Width="10" Height="10"/>
+                </Button>
+                <Button Style="{StaticResource CloseButton}" Click="Close_Click" ToolTip="Close">
+                    <Path Data="M0,0 L10,10 M10,0 L0,10" Stroke="{StaticResource Sub}" StrokeThickness="1.1" Width="10" Height="10"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

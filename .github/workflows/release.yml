@@ -1,0 +1,30 @@
+name: Release
+
+# Push a tag like v2.4.0 and this builds PC Optimizer and publishes it as a GitHub Release.
+# Everyone running the app gets the update offered in-app (Settings > Updates, or the automatic check).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Publish
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
+          dotnet publish Overdrive.csproj -c Release -o out -p:Version=$v -p:InformationalVersion="$v+$stamp"
+          Copy-Item "out/PC Optimizer.exe" "PC-Optimizer.exe"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: PC-Optimizer.exe
+          generate_release_notes: true
