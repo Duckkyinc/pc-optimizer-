@@ -46,11 +46,11 @@ public class TrayMenu : Window
         stack.Children.Add(Divider());
         stack.Children.Add(SectionLabel("QUICK TOGGLES"));
         stack.Children.Add(ToggleRow("", "Game Boost", "Auto-boosts any game you open",
-            () => Store.Settings.AutoBoost, v => { Store.Settings.AutoBoost = v; Store.SaveSettings(); _main.UpdateBoost(BoostMode.Status); }));
+            () => Store.Settings.AutoBoost, v => { Store.Settings.AutoBoost = v; Store.SaveSettings(); BoostMode.Recheck(); _main.UpdateBoost(BoostMode.Status); }));
         stack.Children.Add(ToggleRow("", "In-game overlay", "FPS counter  ·  Ctrl+Shift+O",
             () => Store.Settings.FpsOverlay, v => LiveMonitor.SetOverlay(v)));
         stack.Children.Add(ToggleRow("", "Pause Wi-Fi scans in games", "Stops lag spikes from background scans",
-            () => Store.Settings.WifiScanPauseWhileGaming, v => { Store.Settings.WifiScanPauseWhileGaming = v; Store.SaveSettings(); }));
+            () => Store.Settings.WifiScanPauseWhileGaming, v => { Store.Settings.WifiScanPauseWhileGaming = v; Store.SaveSettings(); BoostMode.SettingChanged(); }));
         stack.Children.Add(ToggleRow("", "Streamer mode", "Hides network names and details",
             () => Store.Settings.StreamerMode, v => { Store.Settings.StreamerMode = v; Store.SaveSettings(); }));
         stack.Children.Add(Divider());

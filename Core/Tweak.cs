@@ -137,7 +137,12 @@ public class TweakVM : Observable
         try
         {
             await Task.Run(() => { if (on) Tweak.Apply(); else Tweak.Revert(); });
-            Status = on ? (NeedsReboot ? "Applied - restart to finish" : "Applied") : "Reverted";
+            // Most tweaks take effect the moment you flip them. Driver/game settings are read when a game starts.
+            bool gameSide = Tweak.Id.StartsWith("nv.") || Tweak.Id.StartsWith("game.") || Tweak.Id is "win.gamedvr" or "win.windowedopt";
+            string when = NeedsReboot ? " - restart to finish" : gameSide && BoostMode.ActiveGame != null ? " - restart the game to see it" : "";
+            Status = (on ? "Applied" : "Turned off") + when;
+            if (gameSide && !NeedsReboot && BoostMode.ActiveGame != null)
+                Tray.Notify(Tweak.Title, $"Changed. Restart {BoostMode.ActiveGame.Name} for it to take effect.");
         }
         catch (Exception ex)
         {

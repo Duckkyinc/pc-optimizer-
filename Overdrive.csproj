@@ -11,9 +11,9 @@
     <RootNamespace>Overdrive</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>overdrive.ico</ApplicationIcon>
-    <Version>2.7.3</Version>
+    <Version>2.7.4</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <InformationalVersion>2.7.3+$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</InformationalVersion>
+    <InformationalVersion>2.7.4+$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</InformationalVersion>
     <Product>PC Optimizer</Product>
     <Description>PC and game optimization hub</Description>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

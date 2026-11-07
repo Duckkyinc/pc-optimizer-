@@ -277,7 +277,7 @@ public static class Catalog
             Warning = "Needs Game Boost on (Settings). While a game is running, Windows won't look for other networks, but you stay connected to yours.",
             IsAvailable = () => WifiInterfaces().Any(),
             IsApplied = () => Store.Settings.WifiScanPauseWhileGaming,
-            Apply = () => { Store.Settings.WifiScanPauseWhileGaming = true; Store.SaveSettings(); },
+            Apply = () => { Store.Settings.WifiScanPauseWhileGaming = true; Store.SaveSettings(); if (BoostMode.ActiveGame != null) WifiScan.Pause(); },
             Revert = () => { Store.Settings.WifiScanPauseWhileGaming = false; Store.SaveSettings(); WifiScan.Resume(); },
         });
 

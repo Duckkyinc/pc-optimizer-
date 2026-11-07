@@ -170,9 +170,12 @@ public static class LowEnd
     // ------------------------------------------------------------------ game session hooks
     static Timer _ramTimer;
 
+    static bool _begun;
     public static List<string> Begin()
     {
         var notes = new List<string>();
+        if (_begun) return notes;
+        _begun = true;
         int s = PauseServices(); if (s > 0) notes.Add($"paused {s} Windows services");
         int a = LowerBackgroundApps(); if (a > 0) notes.Add($"lowered {a} background apps");
         if (FreeRamPercent() < 35) { var mb = FreeStandbyRam(); if (mb > 50) notes.Add($"freed {mb:0} MB RAM"); }
@@ -183,6 +186,7 @@ public static class LowEnd
 
     public static void End()
     {
+        _begun = false;
         _ramTimer?.Dispose(); _ramTimer = null;
         RestoreBackgroundApps();
         ResumeServices();

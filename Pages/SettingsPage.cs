@@ -27,8 +27,8 @@ public class SettingsPage : UserControl, IRefreshable
         t.Children.Add(UI.Text("Max power, 0.5 ms timer and closes the apps below while you play. Never touches the game.", 12, "Sub"));
         g.Children.Add(t);
         var sw = new CheckBox { Style = UI.Res<Style>("Switch"), IsChecked = Store.Settings.AutoBoost, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0) };
-        sw.Checked += (_, _) => { Store.Settings.AutoBoost = true; Store.SaveSettings(); _main.UpdateBoost(BoostMode.Status); };
-        sw.Unchecked += (_, _) => { Store.Settings.AutoBoost = false; Store.SaveSettings(); _main.UpdateBoost(BoostMode.Status); };
+        sw.Checked += (_, _) => { Store.Settings.AutoBoost = true; Store.SaveSettings(); BoostMode.Recheck(); _main.UpdateBoost(BoostMode.Status); };
+        sw.Unchecked += (_, _) => { Store.Settings.AutoBoost = false; Store.SaveSettings(); BoostMode.Recheck(); _main.UpdateBoost(BoostMode.Status); };
         Grid.SetColumn(sw, 1); g.Children.Add(sw);
         gb.Children.Add(g);
         gb.Children.Add(LowEndRow());
@@ -174,8 +174,8 @@ public class SettingsPage : UserControl, IRefreshable
         t.Children.Add(UI.Text("Pauses background Windows work and frees RAM during games.", 12, "Sub"));
         g.Children.Add(t);
         var sw = new CheckBox { Style = UI.Res<Style>("Switch"), IsChecked = LowEnd.Enabled, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0) };
-        sw.Checked += (_, _) => { Store.Settings.LowEndMode = true; Store.SaveSettings(); };
-        sw.Unchecked += (_, _) => { Store.Settings.LowEndMode = false; Store.SaveSettings(); };
+        sw.Checked += (_, _) => { Store.Settings.LowEndMode = true; Store.SaveSettings(); BoostMode.SettingChanged(); };
+        sw.Unchecked += (_, _) => { Store.Settings.LowEndMode = false; Store.SaveSettings(); BoostMode.SettingChanged(); };
         Grid.SetColumn(sw, 1); g.Children.Add(sw);
         return g;
     }

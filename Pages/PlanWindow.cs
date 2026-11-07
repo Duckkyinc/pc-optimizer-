@@ -150,7 +150,7 @@ public class PlanWindow : Window
                 catch (Exception ex) { if (!UI.Confirm("Couldn't create a restore point:\n" + ex.Message + "\n\nContinue anyway? PC Optimizer still saves a backup of every change.")) return; }
             }
             foreach (var vm in todo) { try { await vm.SetAsync(true, quiet: true); } catch { } }
-            if (_lowEndBox?.IsChecked == true) { Store.Settings.LowEndMode = true; Store.SaveSettings(); }
+            if (_lowEndBox?.IsChecked == true) { Store.Settings.LowEndMode = true; Store.SaveSettings(); BoostMode.SettingChanged(); }
             Applied = true;
             var failed = todo.Where(v => !v.IsOn).ToList();
             bool reboot = todo.Any(v => v.IsOn && v.NeedsReboot);

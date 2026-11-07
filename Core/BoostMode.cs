@@ -27,6 +27,27 @@ public static class BoostMode
         _timer.Start();
     }
 
+    /// <summary>Re-check right now instead of waiting for the next 5-second tick (used when a switch is flipped).</summary>
+    public static void Recheck() => System.Windows.Application.Current?.Dispatcher.BeginInvoke(() => Tick(null, EventArgs.Empty));
+
+    /// <summary>Apply a changed boost setting immediately to the game session that's running.</summary>
+    public static void SettingChanged()
+    {
+        if (_active == null) { Recheck(); return; }
+        Task.Run(() =>
+        {
+            try
+            {
+                if (Store.Settings.WifiScanPauseWhileGaming) WifiScan.Pause(); else WifiScan.Resume();
+                if (LowEnd.Enabled) LowEnd.Begin(); else LowEnd.End();
+                if (Store.Settings.ProBalance) ProBalance.Start(); else ProBalance.Stop();
+                if (Store.Settings.TrafficShaper) TrafficShaper.Begin(); else TrafficShaper.End();
+            }
+            catch (Exception ex) { Store.Log("Boost setting change: " + ex.Message); }
+        });
+        Recheck();
+    }
+
     static bool _ticking;
     static async void Tick(object s, EventArgs e)
     {

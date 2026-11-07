@@ -88,8 +88,8 @@ public class DashboardPage : UserControl, IRefreshable
                 free.Content = mb > 1 ? $"Freed {mb:0} MB" : "Already free";
             }), icon: "\uE964");
             var sw = new CheckBox { Style = UI.Res<Style>("Switch"), IsChecked = LowEnd.Enabled, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0) };
-            sw.Checked += (_, _) => { Store.Settings.LowEndMode = true; Store.SaveSettings(); };
-            sw.Unchecked += (_, _) => { Store.Settings.LowEndMode = false; Store.SaveSettings(); };
+            sw.Checked += (_, _) => { Store.Settings.LowEndMode = true; Store.SaveSettings(); BoostMode.SettingChanged(); };
+            sw.Unchecked += (_, _) => { Store.Settings.LowEndMode = false; Store.SaveSettings(); BoostMode.SettingChanged(); };
             lr.Children.Add(free); lr.Children.Add(sw);
             Grid.SetColumn(lr, 2); le.Children.Add(lr);
             var leCard = UI.Card(le, new Thickness(0, 0, 0, 18));
