@@ -90,6 +90,13 @@ public static class Catalog
                 HKLM(@"SYSTEM\CurrentControlSet\Control\Power\PowerThrottling", "PowerThrottlingOff", 1),
             }, reboot: true, warning: "Laptop battery won't last as long."));
 
+        Windows.Add(Tweak.Registry("win.mpo", "Fix random black screens (turn off MPO)",
+            "Multi-Plane Overlay is a Windows display feature that NVIDIA says can cause monitors to go black for a moment, flicker or stutter, especially with two or more screens. This is NVIDIA's own fix. Only use it if your screens randomly go black or flicker.",
+            Impact.Situational,
+            () => new[] { RegSet.HKLM(@"SOFTWARE\Microsoft\Windows\Dwm", "OverlayTestMode", 5, def: null) },
+            reboot: true,
+            warning: "Only for random black screens/flicker. Can slightly raise desktop GPU use. Newer Windows 11 builds may ignore it."));
+
         Windows.Add(Tweak.Registry("win.mouseaccel", "Turn off mouse acceleration",
             "Removes 'Enhance pointer precision'. Your crosshair then moves the same distance every time you move the mouse the same distance, whatever the speed. Every pro player does this. It doesn't add FPS, but it makes your aim more consistent.",
             Impact.Quality, new[]

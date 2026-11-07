@@ -101,7 +101,7 @@ public static class CrashFinder
         {
             case Kind.GpuReset:
                 return ("Your graphics driver stopped responding and Windows restarted it. Games freeze, go black or crash when this happens.",
-                    "Update or clean-reinstall your GPU driver. If you overclock your GPU, remove the overclock. Check GPU temperatures in FPS Monitor.", "gpu");
+                    "Remove any GPU overclock/undervolt, clean-reinstall the GPU driver, and reseat the GPU power and display cables. If your monitors randomly go black, turn on 'Fix random black screens (turn off MPO)' in the Windows tab.", "gpu");
             case Kind.Shutdown:
                 return ("Your PC turned off or restarted without shutting down properly (no blue screen was saved).",
                     "Usually power or heat: check that the PC isn't overheating, the power supply is strong enough for your GPU, and cables are seated. On laptops, check the battery and charger.", null);
