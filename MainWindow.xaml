@@ -46,6 +46,7 @@
                     <RadioButton Style="{StaticResource NavButton}" Tag="&#xE701;" Content="Network" x:Name="NavNetwork" Checked="Nav_Checked"/>
                     <RadioButton Style="{StaticResource NavButton}" Tag="&#xE74D;" Content="Cleanup" x:Name="NavCleanup" Checked="Nav_Checked"/>
                     <TextBlock Text="TEST &amp; TRACK" Style="{StaticResource NavGroup}"/>
+                    <RadioButton Style="{StaticResource NavButton}" Tag="&#xE95E;" Content="PC Health" x:Name="NavHealth" Checked="Nav_Checked"/>
                     <RadioButton Style="{StaticResource NavButton}" Tag="&#xE9D9;" Content="FPS Monitor" x:Name="NavPerf" Checked="Nav_Checked"/>
                     <RadioButton Style="{StaticResource NavButton}" Tag="&#xEC4A;" Content="Benchmark" x:Name="NavBench" Checked="Nav_Checked"/>
                     <RadioButton Style="{StaticResource NavButton}" Tag="&#xE7BE;" Content="Pro Lab" x:Name="NavLab" Checked="Nav_Checked"/>

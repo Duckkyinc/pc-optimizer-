@@ -20,6 +20,7 @@ public partial class MainWindow : Window
             ["NavPerf"] = () => new PerformancePage(),
             ["NavBench"] = () => new BenchmarkPage(),
             ["NavLab"] = () => new LabPage(),
+            ["NavHealth"] = () => new HealthPage(),
             ["NavApps"] = () => new AppsPage(),
             ["NavGames"] = () => new GamesPage(),
             ["NavAim"] = () => new AimPage(),

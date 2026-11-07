@@ -11,9 +11,9 @@
     <RootNamespace>Overdrive</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>overdrive.ico</ApplicationIcon>
-    <Version>2.6.0</Version>
+    <Version>2.7.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <InformationalVersion>2.6.0+$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</InformationalVersion>
+    <InformationalVersion>2.7.0+$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</InformationalVersion>
     <Product>PC Optimizer</Product>
     <Description>PC and game optimization hub</Description>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -28,6 +28,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="4.0.0" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.1" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.1" />
     <PackageReference Include="System.Management" Version="8.0.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.1" />
