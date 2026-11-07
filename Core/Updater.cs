@@ -17,7 +17,21 @@ public static class Updater
     public const string Owner = "Duckkyinc";
     public const string Repo = "pc-optimizer-";
 
-    public record Release(Version Version, string Tag, string Notes, string AssetUrl, string AssetName, long Size);
+    public record Release(Version Version, string Tag, string Notes, string AssetUrl, string AssetName, long Size) { public long Id { get; init; } }
+
+    /// <summary>When this build was made (from the +yyyyMMddHHmmss build stamp).</summary>
+    static DateTime? BuildTimeUtc
+    {
+        get
+        {
+            var stamp = App.BuildId.Split('+').LastOrDefault();
+            return DateTime.TryParseExact(stamp, "yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out var t) ? t : null;
+        }
+    }
+
+    /// <summary>"2.4.1" when the file name has a version, else the release name.</summary>
+    public static string Label(Release r) => r.Version > new Version(0, 0) ? r.Version.ToString() : r.Tag;
 
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
     static Updater() { Http.DefaultRequestHeaders.UserAgent.ParseAdd("PC-Optimizer-Updater/1.0"); }
@@ -60,11 +74,23 @@ public static class Updater
         }
         if (pick == null) throw new Exception("The latest release has no .exe or .zip attached.");
         var asset = pick.Value;
-        // Version comes from the tag (v2.4.0), or else the release title or the file name (PC-Optimizer-v2.4.0.zip).
-        var ver = ParseTag(tag) ?? FindVersion(relName) ?? FindVersion(asset.GetProperty("name").GetString());
-        if (ver == null) throw new Exception($"Couldn't find a version number in the release '{tag}'. Name the tag or the zip like v2.4.0.");
-        var rel = new Release(ver, tag, notes, asset.GetProperty("browser_download_url").GetString(), asset.GetProperty("name").GetString(), asset.GetProperty("size").GetInt64());
-        Available = ver > Current ? rel : null;
+        long id = root.GetProperty("id").GetInt64();
+        DateTime published = root.TryGetProperty("published_at", out var pa) && pa.ValueKind == JsonValueKind.String ? pa.GetDateTime().ToUniversalTime() : DateTime.MinValue;
+        string assetName = asset.GetProperty("name").GetString();
+
+        // The tag and title can be anything. Decide like this:
+        // 1) already installed this exact release -> nothing to do
+        // 2) the file name has a version (PC-Optimizer-v2.4.1.zip) -> compare versions
+        // 3) otherwise -> newer if it was published after this build was made
+        bool newer;
+        var ver = FindVersion(assetName);
+        if (id == Store.Settings.InstalledReleaseId) newer = false;
+        else if (ver != null) newer = ver > Current;
+        else newer = BuildTimeUtc is DateTime bt && published > bt.AddMinutes(10);
+        if (!newer && id != Store.Settings.InstalledReleaseId) { Store.Settings.InstalledReleaseId = id; Store.SaveSettings(); } // remember: this one's not newer
+
+        var rel = new Release(ver ?? new Version(0, 0), string.IsNullOrWhiteSpace(relName) ? tag : relName, notes, asset.GetProperty("browser_download_url").GetString(), assetName, asset.GetProperty("size").GetInt64()) { Id = id };
+        Available = newer ? rel : null;
         return Available;
     }
 
@@ -124,6 +150,7 @@ public static class Updater
         if (new FileInfo(exe).Length < 5_000_000) throw new Exception("The download looks incomplete. Try again.");
 
         Store.Log($"Starting update {r.Tag} from {exe}");
+        Store.Settings.InstalledReleaseId = r.Id; Store.SaveSettings(); // so the new version doesn't offer this same release again
         Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(exe) });
         // The new build closes this copy, installs itself and restarts. Exit anyway in case it can't signal us.
         await Task.Delay(8000);

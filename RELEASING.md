@@ -18,4 +18,4 @@ Any release whose tag is newer than the running version (tags like `v2.4.0`) is 
 2. On GitHub: Releases > Draft a new release > tag `v2.4.1`.
 3. Attach the .exe (or a .zip with the .exe inside) and publish.
 
-The tag number must be higher than the version in the app, or nobody gets the update.
+The tag and title can be anything. The app uses the version in the zip/exe file name (like `PC-Optimizer-v2.4.1.zip`) if there is one, otherwise the newest published release counts as an update.

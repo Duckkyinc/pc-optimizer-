@@ -84,6 +84,7 @@ public class AppSettings
     public List<string> BoostKillList { get; set; } = new();
     public bool StreamerMode { get; set; }
     public bool AutoUpdateCheck { get; set; } = true;
+    public long InstalledReleaseId { get; set; }
     /// <summary>null = decide automatically (on for low-end PCs).</summary>
     public bool? LowEndMode { get; set; } = true;
     public bool FpsOverlay { get; set; }

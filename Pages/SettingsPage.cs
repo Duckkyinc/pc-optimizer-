@@ -195,7 +195,7 @@ public class SettingsPage : UserControl, IRefreshable
         var bar = new ProgressBar { Height = 6, Minimum = 0, Maximum = 1, Margin = new Thickness(0, 12, 0, 0), Visibility = Visibility.Collapsed };
         void ShowAvailable(Updater.Release r)
         {
-            title.Text = $"Version {r.Version} is available";
+            title.Text = $"Update available: {Updater.Label(r)}";
             title.Foreground = UI.B("Good");
             var notes = (r.Notes ?? "").Trim();
             status.Text = notes.Length == 0 ? $"You're on {App.VersionText}." : (notes.Length > 220 ? notes[..220] + "..." : notes);

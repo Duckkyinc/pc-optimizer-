@@ -7,7 +7,7 @@ namespace Overdrive;
 public partial class App : Application
 {
     static Mutex _single;
-    static string _updatePrompted;
+    static long _updatePrompted;
     static EventWaitHandle _showSignal, _exitSignal;
 
     /// <summary>Unique per build, so a new download always replaces an old running copy.</summary>
@@ -138,10 +138,10 @@ public partial class App : Application
         // In-app updates from GitHub Releases
         Updater.Found += () => Dispatcher.BeginInvoke(async () =>
         {
-            var r = Updater.Available; if (r == null || _updatePrompted == r.Tag) return;
-            _updatePrompted = r.Tag;
-            Tray.Notify("Update available", $"PC Optimizer {r.Version} is ready to install.");
-            var ans = Pages.Dialog.Show($"PC Optimizer {r.Version} is available (you have {VersionText}).\n\nUpdate now? It downloads, installs and restarts the app in about a minute.", "Update available", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var r = Updater.Available; if (r == null || _updatePrompted == r.Id) return;
+            _updatePrompted = r.Id;
+            Tray.Notify("Update available", $"PC Optimizer {Updater.Label(r)} is ready to install.");
+            var ans = Pages.Dialog.Show($"A new PC Optimizer update is available ({Updater.Label(r)}). You have {VersionText}.\n\nUpdate now? It downloads, installs and restarts the app in about a minute.", "Update available", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (ans != MessageBoxResult.Yes) return;
             Tray.Notify("Updating PC Optimizer", "Downloading the new version...");
             try { await Updater.InstallAsync(r, null); }
