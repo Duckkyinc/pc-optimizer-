@@ -253,9 +253,9 @@ public class BenchmarkPage : UserControl
         var b = new Border { Background = UI.Hex("#2A1F0A"), BorderBrush = UI.Hex("#F59E0B"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 18, 0, 0) };
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(new TextBlock { Text = "\uE7BA", FontFamily = UI.IconFont, Foreground = UI.Hex("#F59E0B"), FontSize = 15, Margin = new Thickness(0, 1, 10, 0) });
-        var t = UI.Text($"Your FPS was stuck at about {fps:0} in every test, so something is capping it and the score can't show your PC's real speed. "
-            + "Turn off V-Sync and any FPS limit for this test: NVIDIA Control Panel › Vertical sync = Off and Max Frame Rate = Off (or the GPU tab's FPS cap here), "
-            + "AMD Adrenalin › Wait for Vertical Refresh = Off and Frame Rate Target Control = Off, and close RivaTuner/Afterburner limiters. Then run it again.", 13);
+        var t = UI.Text($"Your FPS was stuck at about {fps:0} in every test, so something outside the test is still capping it. "
+            + "The test already runs in exclusive fullscreen and switches off NVIDIA's Max Frame Rate and V-Sync for you. "
+            + "Check: AMD Software (Radeon Chill, Frame Rate Target Control, Enhanced Sync = Off), RivaTuner/Afterburner or Steam FPS limiters, and laptop battery saver. Then run it again.", 13);
         t.MaxWidth = 760;
         row.Children.Add(t);
         b.Child = row;
@@ -431,7 +431,7 @@ public class BenchmarkPage : UserControl
         main?.Hide();
         try
         {
-            var (run, error) = await Benchmark.RunAsync(quick);
+            var (run, error) = await Benchmark.RunUncappedAsync(quick);
             if (main != null) Tray.ShowMain(main);
             if (run != null)
             {

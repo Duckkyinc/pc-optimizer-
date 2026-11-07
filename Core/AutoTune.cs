@@ -64,16 +64,25 @@ public static class AutoTune
 
     static async Task<double> RunChild()
     {
+        var (run, err) = await Benchmark.RunUncappedAsync(true);
+        if (run == null || run.Score <= 0) throw new Exception(err ?? "the benchmark was cancelled");
+        return run.Score;
+    }
+
+    /// <summary>Runs one benchmark in a separate process and returns its result.</summary>
+    public static async Task<(SimRun Run, string Error)> RunChildAsync(bool quick)
+    {
         string tmp = Path.Combine(Path.GetTempPath(), $"pco-bench-{Guid.NewGuid():N}.json");
-        using var p = Process.Start(new ProcessStartInfo(Environment.ProcessPath, $"--bench quick --out \"{tmp}\"") { UseShellExecute = false })
+        using var p = Process.Start(new ProcessStartInfo(Environment.ProcessPath, $"--bench {(quick ? "quick" : "full")} --out \"{tmp}\"") { UseShellExecute = false })
                       ?? throw new Exception("couldn't start the benchmark");
         await p.WaitForExitAsync();
-        if (!File.Exists(tmp)) throw new Exception("the benchmark was cancelled");
+        if (!File.Exists(tmp)) return (null, null); // cancelled with ESC
         try
         {
             var run = JsonSerializer.Deserialize<SimRun>(File.ReadAllText(tmp));
-            if (run == null || run.Score <= 0) throw new Exception("the benchmark was cancelled");
-            return run.Score;
+            if (run == null) return (null, "The benchmark couldn't start.");
+            if (run.Stages.Count == 0) return (null, run.Gpu?.StartsWith("error: ") == true ? run.Gpu[7..] : null);
+            return (run, null);
         }
         finally { try { File.Delete(tmp); } catch { } }
     }
@@ -85,7 +94,9 @@ public static class AutoTune
         int i = Array.IndexOf(args, "--out");
         string outPath = i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
         try { SysInfo.Load(); } catch { }
-        var (run, _) = Benchmark.RunAsync(quick).GetAwaiter().GetResult();
-        if (run != null && outPath != null) File.WriteAllText(outPath, JsonSerializer.Serialize(run));
+        var (run, err) = Benchmark.RunAsync(quick).GetAwaiter().GetResult();
+        if (outPath == null) return;
+        if (run != null) File.WriteAllText(outPath, JsonSerializer.Serialize(run));
+        else if (err != null) File.WriteAllText(outPath, JsonSerializer.Serialize(new SimRun { Gpu = "error: " + err }));
     }
 }

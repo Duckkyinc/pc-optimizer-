@@ -31,6 +31,37 @@ public static class Benchmark
     public const int TestVersion = 2;
     public static bool Running { get; private set; }
 
+    /// <summary>
+    /// Runs the benchmark in a fresh process with every FPS cap lifted: NVIDIA's global Max Frame Rate and forced
+    /// V-Sync are switched off just for the test and put back afterwards. (A fresh process is needed because the
+    /// graphics driver only reads these settings when a program starts.)
+    /// </summary>
+    public static async Task<(SimRun Run, string Error)> RunUncappedAsync(bool quick)
+    {
+        var restore = new List<(uint Id, uint? Old, bool UserSet)>();
+        try
+        {
+            if (Nvapi.Available)
+            {
+                foreach (var (id, want) in new[] { (Nvapi.FRL_FPS, 0u), (Nvapi.VSYNCMODE, Nvapi.VSYNC_FORCEOFF) })
+                {
+                    var (val, userSet) = Nvapi.Get(id);
+                    if (val == want) continue;
+                    restore.Add((id, val, userSet));
+                    Nvapi.Set(id, want);
+                }
+                if (restore.Count > 0) Store.Log($"Benchmark: lifted {restore.Count} NVIDIA FPS cap(s) for the test");
+            }
+        }
+        catch (Exception ex) { Store.Log("Benchmark: couldn't lift NVIDIA caps: " + ex.Message); }
+        try { return await AutoTune.RunChildAsync(quick); }
+        finally
+        {
+            foreach (var (id, old, userSet) in restore)
+                try { if (userSet && old is uint o) Nvapi.Set(id, o); else Nvapi.Delete(id); } catch { }
+        }
+    }
+
     /// <summary>Runs the benchmark on its own thread. Returns null if cancelled or failed (error in <paramref name="error"/>).</summary>
     public static Task<(SimRun Run, string Error)> RunAsync(bool quick)
     {
@@ -84,7 +115,7 @@ public static class Benchmark
         ID3D11RenderTargetView _rtv;
         ID3D11DepthStencilView _dsv;
         ID3D11Texture2D _depth;
-        bool _tearing;
+        bool _tearing, _fullscreen;
         int _w, _h;
 
         ID3D11Buffer _frameCb, _objCb, _hudCb;
@@ -149,6 +180,14 @@ public static class Benchmark
             _swap = factory.CreateSwapChainForHwnd(_dev, _form.Handle, desc);
             factory.MakeWindowAssociation(_form.Handle, WindowAssociationFlags.IgnoreAltEnter);
 
+            // Exclusive fullscreen: skips the Windows compositor, so FPS is never held to the monitor's refresh rate.
+            try
+            {
+                _swap.SetFullscreenState(true, null).CheckError();
+                _swap.ResizeBuffers(2, (uint)_w, (uint)_h, Format.B8G8R8A8_UNorm, _tearing ? SwapChainFlags.AllowTearing : SwapChainFlags.None).CheckError();
+                _fullscreen = true;
+            }
+            catch (Exception ex) { Store.Log("Benchmark: exclusive fullscreen not available, using borderless: " + ex.Message); _fullscreen = false; }
             using (var back = _swap.GetBuffer<ID3D11Texture2D>(0)) _rtv = _dev.CreateRenderTargetView(back);
             _depth = _dev.CreateTexture2D(new Texture2DDescription
             {
@@ -218,7 +257,7 @@ public static class Benchmark
                     RenderStage(s, (float)local);
                     double overall = (s + Math.Min(1, local / (_warm + _len))) / Stages.Length;
                     DrawHud(s, local < _warm, fpsShown, overall);
-                    _swap.Present(0, _tearing ? PresentFlags.AllowTearing : PresentFlags.None);
+                    _swap.Present(0, _tearing && !_fullscreen ? PresentFlags.AllowTearing : PresentFlags.None); // sync interval 0 = uncapped
                 }
                 if (Cancelled) break;
                 run.Stages.Add(Summarize(Stages[s].Name, times));
@@ -516,6 +555,7 @@ public static class Benchmark
 
         public void Dispose()
         {
+            try { if (_fullscreen) _swap?.SetFullscreenState(false, null); } catch { }
             try { _ctx?.ClearState(); _ctx?.Flush(); } catch { }
             foreach (var d in _labelsAll) try { d.Dispose(); } catch { }
             IDisposable[] all = { _vsCity, _vsGround, _vsFull, _vsParticle, _vsObj, _vsHud, _psCity, _psGround, _psFractal, _psParticle, _psHud,
