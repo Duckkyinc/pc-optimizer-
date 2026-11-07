@@ -40,6 +40,8 @@ public static class Updater
     public static Version Current => Version.TryParse(App.VersionText, out var v) ? v : new Version(0, 0, 0);
     public static Release Available { get; private set; }
     static string _etag;
+    /// <summary>What the last check saw on GitHub, for the Settings page ("Latest on GitHub: ...").</summary>
+    public static string LastSeen { get; private set; }
     public static event Action Found;
 
     static Version ParseTag(string tag)
@@ -99,6 +101,8 @@ public static class Updater
 
         var rel = new Release(ver ?? new Version(0, 0), string.IsNullOrWhiteSpace(relName) ? tag : relName, notes, asset.GetProperty("browser_download_url").GetString(), assetName, asset.GetProperty("size").GetInt64()) { Id = id };
         Available = newer ? rel : null;
+        LastSeen = $"Latest on GitHub: {assetName} (published {published.ToLocalTime():MMM d, h:mm tt})";
+        Store.Log($"Update check: latest {assetName} id {id}, newer={newer} (running {App.VersionText})");
         return Available;
     }
 

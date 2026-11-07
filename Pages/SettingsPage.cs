@@ -207,9 +207,9 @@ public class SettingsPage : UserControl, IRefreshable
             {
                 var r = await Updater.CheckAsync();
                 if (r != null) ShowAvailable(r);
-                else { title.Text = $"You're up to date ({App.VersionText})"; status.Text = "Checked just now."; }
+                else { title.Text = $"You're up to date ({App.VersionText})"; status.Text = (Updater.LastSeen ?? "Checked just now.") + "  ·  checked just now"; }
             }
-            catch (Exception ex) { status.Text = "Couldn't check: " + ex.Message; }
+            catch (Exception ex) { status.Text = "Couldn't check: " + ex.Message; Store.Log("Manual update check failed: " + ex); }
         }), icon: "\uE72C");
         update = UI.Btn("Update now", async (s, e) => await UI.Busy(update, async () =>
         {
