@@ -94,6 +94,10 @@ public class NetworkPage : TweakListPage
         q.Children.Add(qOut);
         sp.Children.Add(UI.Card(q));
 
+        sp.Children.Add(UI.SectionInfo("Network Analyzer", "Traces every hop between you and a game server region and pings each one many times, to find exactly where lag or packet loss starts. Addresses are never shown."));
+        sp.Children.Add(AnalyzerCard());
+        sp.Children.Add(UI.Section("Traffic Shaper"));
+        sp.Children.Add(ShaperCard());
         sp.Children.Add(UI.Section("Network tweaks"));
         return sp;
     }
@@ -333,5 +337,134 @@ public class NetworkPage : TweakListPage
         c.Children.Add(row);
         sp.Children.Add(UI.Collapsible("Fix-it tools (Flush DNS, reset network)", c, "\uE90F"));
         return sp;
+    }
+
+    // ================================================================== Network Analyzer
+    static UIElement AnalyzerCard()
+    {
+        var sp = new StackPanel();
+        var top = new Grid();
+        top.ColumnDefinitions.Add(new ColumnDefinition());
+        top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var intro = new StackPanel();
+        intro.Children.Add(UI.Text("Find where your lag comes from", 15, "Text", FontWeights.SemiBold, false));
+        intro.Children.Add(UI.Text("Your Wi-Fi, your internet provider, or the game's side. Takes about 30 seconds.", 12.5, "Sub"));
+        top.Children.Add(intro);
+
+        NetLab.Region picked = null; // null = closest
+        var pick = new WrapPanel { Margin = new Thickness(0, 12, 0, 0) };
+        var auto = new RadioButton { Style = UI.Res<Style>("Chip"), Content = "Closest", GroupName = "anreg", IsChecked = true };
+        auto.Checked += (_, _) => picked = null;
+        pick.Children.Add(auto);
+        foreach (var r in NetLab.Regions)
+        {
+            var rb = new RadioButton { Style = UI.Res<Style>("Chip"), Content = r.Name, GroupName = "anreg", ToolTip = r.Where };
+            var rr = r; rb.Checked += (_, _) => picked = rr;
+            pick.Children.Add(rb);
+        }
+
+        var bar = new ProgressBar { Height = 6, Minimum = 0, Maximum = 1, Margin = new Thickness(0, 14, 0, 0), Visibility = Visibility.Collapsed };
+        var status = UI.Text("", 12, "Sub"); status.Margin = new Thickness(0, 6, 0, 0);
+        var results = new StackPanel();
+        System.Threading.CancellationTokenSource cts = null;
+        Button run = null;
+        run = UI.Btn("Analyze", async (s, e) =>
+        {
+            if (cts != null) { cts.Cancel(); return; }
+            cts = new System.Threading.CancellationTokenSource();
+            run.Content = "Cancel"; bar.Visibility = Visibility.Visible; bar.Value = 0; results.Children.Clear();
+            try
+            {
+                var region = picked;
+                if (region == null)
+                {
+                    status.Text = "Finding the closest server region...";
+                    var pings = await Task.WhenAll(NetLab.Regions.Select(async r => (r, m: await NetLab.MeasureTcp(r.Host, 2, cts.Token))));
+                    region = pings.Where(x => x.m?.AvgMs != null).OrderBy(x => x.m.AvgMs).Select(x => x.r).FirstOrDefault() ?? NetLab.Regions[0];
+                }
+                var res = await NetAnalyzer.RunAsync(region, 25, new Progress<(double Pct, string Text)>(p => { bar.Value = p.Pct; status.Text = p.Text; }), cts.Token);
+                status.Text = $"Route to {res.Region}: {res.Hops.Count} hops";
+                ShowAnalysis(results, res);
+            }
+            catch (OperationCanceledException) { status.Text = "Cancelled."; }
+            catch (Exception ex) { status.Text = "Couldn't finish: " + ex.Message; Store.Log("Analyzer: " + ex); }
+            finally { cts = null; run.Content = "Analyze"; bar.Visibility = Visibility.Collapsed; }
+        }, accent: true, icon: "\uE9D9");
+        run.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetColumn(run, 1); top.Children.Add(run);
+
+        sp.Children.Add(top);
+        sp.Children.Add(pick);
+        sp.Children.Add(bar);
+        sp.Children.Add(status);
+        sp.Children.Add(results);
+        return UI.Card(sp);
+    }
+
+    static void ShowAnalysis(StackPanel host, NetAnalyzer.Result r)
+    {
+        host.Children.Clear();
+        host.Margin = new Thickness(0, 14, 0, 0);
+        foreach (var f in r.Findings)
+        {
+            var b = new Border
+            {
+                Background = f.Bad ? UI.Hex("#2A1418") : UI.Hex("#11261D"), BorderBrush = f.Bad ? UI.Hex("#F43F5E") : UI.Hex("#2EE59D"),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 8)
+            };
+            var t = new StackPanel();
+            t.Children.Add(UI.Text((f.Bad ? "Problem: " : "") + f.Where, 13.5, "Text", FontWeights.SemiBold));
+            t.Children.Add(UI.Text(f.Problem, 12.5, "Sub"));
+            var fix = UI.Text("Fix: " + f.Fix, 12.5, "Text"); fix.Margin = new Thickness(0, 4, 0, 0);
+            t.Children.Add(fix);
+            b.Child = t;
+            host.Children.Add(b);
+        }
+        var lh = UI.Label("EVERY HOP ON THE WAY"); lh.Margin = new Thickness(0, 10, 0, 6);
+        host.Children.Add(lh);
+        double max = Math.Max(20, r.Hops.Max(h => h.Avg));
+        foreach (var h in r.Hops)
+        {
+            var g = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
+            g.ColumnDefinitions.Add(new ColumnDefinition());
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
+            var n = UI.Text(h.Number.ToString(), 12, "Dim", wrap: false); n.VerticalAlignment = VerticalAlignment.Center;
+            var l = UI.Text(h.Label, 12.5, h.Zone == NetAnalyzer.Zone.Server ? "Text" : "Sub", h.Zone == NetAnalyzer.Zone.Server ? FontWeights.SemiBold : FontWeights.Normal, false); l.VerticalAlignment = VerticalAlignment.Center;
+            bool bad = h.Loss >= 5 && h.Zone != NetAnalyzer.Zone.Internet || h.Zone == NetAnalyzer.Zone.Router && (h.Jitter > 6 || h.Avg > 8);
+            var track = new Grid { Height = 6, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+            track.Children.Add(new Border { Background = UI.B("Line"), CornerRadius = new CornerRadius(3) });
+            var fill = new Border { Background = bad ? UI.Hex("#F43F5E") : UI.B("Accent"), CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left };
+            double frac = h.Avg / max;
+            track.SizeChanged += (_, _) => fill.Width = Math.Max(2, track.ActualWidth * frac);
+            track.Children.Add(fill);
+            var v = UI.Text(h.Silent ? "doesn't answer pings (normal)" : $"{h.Avg:0} ms  ·  ±{h.Jitter:0}  ·  {h.Loss:0}% loss", 12, bad ? "Text" : "Sub", wrap: false);
+            v.VerticalAlignment = VerticalAlignment.Center; v.HorizontalAlignment = HorizontalAlignment.Right;
+            Grid.SetColumn(l, 1); Grid.SetColumn(track, 2); Grid.SetColumn(v, 3);
+            g.Children.Add(n); g.Children.Add(l); g.Children.Add(track); g.Children.Add(v);
+            host.Children.Add(g);
+        }
+        host.Children.Add(UI.Text("Loss at a single middle hop is normal (routers answer pings last). Only loss that continues to the server matters.", 11, "Dim"));
+    }
+
+    // ================================================================== Traffic Shaper
+    static UIElement ShaperCard()
+    {
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var t = new StackPanel();
+        var tr = new StackPanel { Orientation = Orientation.Horizontal };
+        tr.Children.Add(UI.Text("Slow down downloads while you play", 15, "Text", FontWeights.SemiBold, false));
+        tr.Children.Add(UI.InfoDot("While a game is running, PC Optimizer caps game launchers (Steam, Epic, Battle.net, EA, Ubisoft, Xbox), cloud sync (OneDrive, Dropbox, Google Drive) and torrent apps, and limits Windows Update to 10% of your bandwidth. Everything goes back to full speed when the game closes. The limits are temporary and vanish after a restart.\n\n" + string.Join(", ", TrafficShaper.Apps.Select(a => a.Friendly).Distinct())));
+        t.Children.Add(tr);
+        t.Children.Add(UI.Text("Stops launchers, cloud sync, torrents and Windows Update from causing lag spikes mid-match.", 12.5, "Sub"));
+        g.Children.Add(t);
+        var sw = new CheckBox { Style = UI.Res<Style>("Switch"), IsChecked = Store.Settings.TrafficShaper, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0) };
+        sw.Checked += (_, _) => { Store.Settings.TrafficShaper = true; Store.SaveSettings(); if (BoostMode.ActiveGame != null) Task.Run(TrafficShaper.Begin); };
+        sw.Unchecked += (_, _) => { Store.Settings.TrafficShaper = false; Store.SaveSettings(); Task.Run(TrafficShaper.End); };
+        Grid.SetColumn(sw, 1); g.Children.Add(sw);
+        return UI.Card(g);
     }
 }

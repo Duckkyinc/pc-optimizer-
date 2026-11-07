@@ -74,6 +74,9 @@ public static class BoostMode
 
         if (LowEnd.Enabled) { try { notes.AddRange(LowEnd.Begin()); } catch (Exception ex) { Store.Log("Low-end boost failed: " + ex.Message); } }
 
+        try { ProBalance.Start(); if (ProBalance.Running) notes.Add("ProBalance on"); } catch (Exception ex) { Store.Log("ProBalance failed: " + ex.Message); }
+        try { Task.Run(TrafficShaper.Begin); if (Store.Settings.TrafficShaper) notes.Add("downloads slowed"); } catch { }
+
         int closed = 0;
         foreach (var name in Store.Settings.BoostKillList)
             foreach (var p in SafeGet(name))
@@ -93,6 +96,8 @@ public static class BoostMode
         if (_timerSet) { try { Native.NtSetTimerResolution(5000, false, out _); } catch { } _timerSet = false; }
         try { WifiScan.Resume(); } catch { }
         try { LowEnd.End(); } catch { }
+        try { ProBalance.Stop(); } catch { }
+        try { TrafficShaper.End(); } catch { }
         try { using var me = Process.GetCurrentProcess(); me.PriorityClass = ProcessPriorityClass.Normal; } catch { }
         Store.Log($"Boost ended for {_active.Name}");
         _active = null; _planBefore = null;

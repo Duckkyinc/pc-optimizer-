@@ -32,6 +32,7 @@ public class SettingsPage : UserControl, IRefreshable
         Grid.SetColumn(sw, 1); g.Children.Add(sw);
         gb.Children.Add(g);
         gb.Children.Add(LowEndRow());
+        gb.Children.Add(ProBalanceRow());
         var kl = UI.Label("CLOSE THESE WHILE GAMING");
         kl.Margin = new Thickness(0, 18, 0, 10);
         gb.Children.Add(kl);
@@ -238,5 +239,27 @@ public class SettingsPage : UserControl, IRefreshable
         sp.Children.Add(inst);
         if (Updater.Available != null) ShowAvailable(Updater.Available);
         return sp;
+    }
+
+    internal static UIElement ProBalanceRow()
+    {
+        var g = new Grid { Margin = new Thickness(0, 16, 0, 0) };
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var t = new StackPanel();
+        var tr = new StackPanel { Orientation = Orientation.Horizontal };
+        tr.Children.Add(UI.Text("ProBalance", 15, "Text", FontWeights.SemiBold, false));
+        tr.Children.Add(UI.InfoDot("Checks CPU use every second while you play. When a background app suddenly hogs the CPU (antivirus scan, browser, updater), it drops that app to lower priority until it calms down, so your game never waits for it. Never touches the game, Windows, anti-cheat, Discord or streaming apps."));
+        t.Children.Add(tr);
+        var sub = UI.Text("Stops background apps from stealing CPU mid-match.", 12, "Sub");
+        t.Children.Add(sub);
+        var recent = ProBalance.Summary();
+        if (!string.IsNullOrEmpty(recent)) t.Children.Add(UI.Text("Last session: restrained " + recent, 11.5, "Dim"));
+        g.Children.Add(t);
+        var sw = new CheckBox { Style = UI.Res<Style>("Switch"), IsChecked = Store.Settings.ProBalance, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0) };
+        sw.Checked += (_, _) => { Store.Settings.ProBalance = true; Store.SaveSettings(); if (BoostMode.ActiveGame != null) ProBalance.Start(); };
+        sw.Unchecked += (_, _) => { Store.Settings.ProBalance = false; Store.SaveSettings(); ProBalance.Stop(); };
+        Grid.SetColumn(sw, 1); g.Children.Add(sw);
+        return g;
     }
 }

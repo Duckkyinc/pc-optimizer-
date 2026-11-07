@@ -143,6 +143,7 @@ public partial class App : Application
             Store.Log("A newer version was opened. Closing this one.");
             Dispatcher.BeginInvoke(() => Tray.Exit());
         }) { IsBackground = true, Name = "update-handoff" }.Start();
+        Task.Run(TrafficShaper.Cleanup);
         BoostMode.Start();
         Pages.LiveMonitor.Start();
 

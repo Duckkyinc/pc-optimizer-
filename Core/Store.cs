@@ -86,6 +86,8 @@ public class AppSettings
     public bool AutoUpdateCheck { get; set; } = true;
     public long InstalledReleaseId { get; set; }
     public bool AutoInstallUpdates { get; set; } = true;
+    public bool ProBalance { get; set; } = true;
+    public bool TrafficShaper { get; set; } = true;
     /// <summary>null = decide automatically (on for low-end PCs).</summary>
     public bool? LowEndMode { get; set; } = true;
     public bool FpsOverlay { get; set; }
