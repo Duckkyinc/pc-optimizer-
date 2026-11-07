@@ -147,10 +147,10 @@ public class DashboardPage : UserControl, IRefreshable
     void Clickable(Border card, string tip)
     {
         card.Cursor = System.Windows.Input.Cursors.Hand;
-        card.ToolTip = tip + " (opens Apps)";
+        card.ToolTip = tip;
         card.MouseEnter += (_, _) => card.BorderBrush = UI.B("Accent");
         card.MouseLeave += (_, _) => card.BorderBrush = UI.B("Line");
-        card.MouseLeftButtonUp += (_, _) => _main.Navigate("NavApps");
+        card.MouseLeftButtonUp += (_, _) => { if (tip.Contains("RAM")) RamWindow.Open(_main); else _main.Navigate("NavApps"); };
     }
 
     static Border Stat(string icon, string label, string title, string sub, ProgressBar bar, TextBlock live, UIElement badge = null)

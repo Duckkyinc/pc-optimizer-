@@ -10,7 +10,7 @@ namespace Overdrive.Core;
 /// </summary>
 public static class ProcSampler
 {
-    public record struct ProcTimes(int Pid, string Name, long CpuTicks, long IoBytes);
+    public record struct ProcTimes(int Pid, string Name, long CpuTicks, long IoBytes, long PrivateBytes = 0);
 
     [DllImport("ntdll.dll")]
     static extern int NtQuerySystemInformation(int infoClass, IntPtr buffer, int length, out int returnLength);
@@ -41,9 +41,10 @@ public static class ProcSampler
                 IntPtr namePtr = Marshal.ReadIntPtr(p, 64);
                 int pid = (int)Marshal.ReadIntPtr(p, 80);
                 long io = Marshal.ReadInt64(p, 232) + Marshal.ReadInt64(p, 240);
+                long priv = Marshal.ReadInt64(p, 8); // private working set (RAM only this app uses)
                 string name = namePtr == IntPtr.Zero || len == 0 ? (pid == 0 ? "Idle" : "System") : Marshal.PtrToStringUni(namePtr, len / 2);
                 if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name = name[..^4];
-                list.Add(new ProcTimes(pid, name, user + kernel, io));
+                list.Add(new ProcTimes(pid, name, user + kernel, io, priv));
                 if (next == 0) break;
                 off += next;
             }

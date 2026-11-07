@@ -496,7 +496,14 @@ public class PerformancePage : UserControl, IRefreshable
                             Line = (Color)ColorConverter.ConvertFromString(c1), Line2 = (Color)ColorConverter.ConvertFromString(c2) };
         sp.Children.Add(g);
         _tiles[key] = (v, sub, g);
-        return UI.Card(sp, new Thickness(0, 0, 12, 12));
+        var card = UI.Card(sp, new Thickness(0, 0, 12, 12));
+        if (key == "ram")
+        {
+            card.Cursor = System.Windows.Input.Cursors.Hand;
+            card.ToolTip = "See what's using your RAM";
+            card.MouseLeftButtonUp += (_, _) => RamWindow.Open(Window.GetWindow(this));
+        }
+        return card;
     }
 
     void FillFromHistory()
