@@ -16,14 +16,14 @@ public class AimPage : UserControl, IRefreshable
     // Yaw values match mouse-sensitivity.com / common converters. For Fortnite, eDPI is DPI x (percent / 100), like pro-settings sites use.
     static readonly AimGame[] GamesList =
     {
-        new("valorant", "VALORANT", 0.07, 180, 400, 270, 0.35, "Most VALORANT pros use 800 DPI with a sensitivity of about 0.25-0.45."),
-        new("cs2", "Counter-Strike 2", 0.022, 600, 1200, 850, 1.1, "Most CS2 pros play at 400 DPI x ~2 or 800 DPI x ~1."),
-        new("apex", "Apex Legends", 0.022, 800, 1600, 1200, 1.4, "Apex pros run a bit faster than CS players because of fast-moving fights."),
-        new("ow2", "Overwatch 2", 0.0066, 3000, 6500, 4500, 5.5, "Overwatch sensitivity numbers are much bigger. That's normal for this game."),
-        new("cod", "CoD / Warzone", 0.0066, 3000, 8000, 5000, 6, "Use the 'Mouse sensitivity' value with 'Legacy' sensitivity mode (the default)."),
-        new("fortnite", "Fortnite", 0.5555, 40, 70, 52, 6.4, "Enter your X-axis sensitivity as the % number (e.g. 6.4). Most Fortnite pros use 800 DPI with 5-8%."),
+        new("valorant", "VALORANT", 0.07, 200, 400, 275, 0.34, "Most VALORANT pros use 800 DPI with 0.25-0.45 sensitivity (avg 0.34)."),
+        new("cs2", "Counter-Strike 2", 0.022, 600, 1200, 800, 1.0, "CS2 pros: median 800 eDPI, e.g. 400 DPI x 2 or 800 DPI x 1."),
+        new("apex", "Apex Legends", 0.022, 800, 1600, 1200, 1.5, "Apex pros mostly use 800 DPI with 1.0-2.0 sensitivity (avg about 1.5)."),
+        new("ow2", "Overwatch", 0.0066, 3000, 6000, 4000, 5.0, "Overwatch pros average about 35 cm/360 (800 DPI x ~5). Tanks often go higher."),
+        new("cod", "CoD / Warzone", 0.0066, 3000, 6000, 4500, 5.6, "Use the 'Mouse sensitivity' value with 'Legacy' sensitivity mode (the default). Few CoD pros play mouse, so this range is approximate."),
+        new("fortnite", "Fortnite", 0.5555, 45, 72, 52, 6.4, "Enter your X-axis sensitivity as the % number (e.g. 6.4). Most Fortnite pros use 800 DPI with 6-9% (Bugha and Peterbot: 6.4%)."),
         new("r6", "Rainbow Six Siege", 0.00572958, 3200, 4800, 4000, 10, "Use your horizontal sensitivity with the default 0.02 multiplier. Pros mostly use 400 DPI x ~12 or 800 DPI x ~5."),
-        new("rivals", "Marvel Rivals", 0.0175, 0, 0, 0, 3, "Pro settings vary too much between heroes for a reliable range. Most guides suggest about 20-40 cm/360."),
+        new("rivals", "Marvel Rivals", 0.0175, 1150, 2100, 1500, 1.9, "Rivals is new, so this range comes from top players and guides (about 25-45 cm/360), not years of pro data."),
         new("other", "Other game", null, 0, 0, 0, 1, "For other games, eDPI is only useful to compare with players of the same game."),
     };
 
