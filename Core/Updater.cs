@@ -35,11 +35,10 @@ public static class Updater
     public static string Label(Release r) => r.Version > new Version(0, 0) ? r.Version.ToString() : r.Tag;
 
     static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(30) };
-    static Updater() { Http.DefaultRequestHeaders.UserAgent.ParseAdd("PC-Optimizer-Updater/1.0"); }
+    static Updater() { Http.DefaultRequestHeaders.UserAgent.ParseAdd("PC-Optimizer-Updater/1.0"); NoRedirect.DefaultRequestHeaders.UserAgent.ParseAdd("PC-Optimizer-Updater/1.0"); }
 
     public static Version Current => Version.TryParse(App.VersionText, out var v) ? v : new Version(0, 0, 0);
     public static Release Available { get; private set; }
-    static string _etag;
     /// <summary>What the last check saw on GitHub, for the Settings page ("Latest on GitHub: ...").</summary>
     public static string LastSeen { get; private set; }
     public static event Action Found;
@@ -59,34 +58,40 @@ public static class Updater
     }
 
     /// <summary>Returns the latest release if it's newer than this build, otherwise null.</summary>
+    static readonly HttpClient NoRedirect = new(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(20) };
+
+    static long StableId(string tag)
+    {
+        unchecked { long h = (long)14695981039346656037UL; foreach (char c in tag) { h ^= c; h *= 1099511628211L; } return h & long.MaxValue; }
+    }
+
+    /// <summary>
+    /// Reads the latest release from github.com's normal release pages (not the API), which have no
+    /// 60-per-hour limit. That's what lets every app check every 30 seconds.
+    /// </summary>
     public static async Task<Release> CheckAsync()
     {
-        // Conditional request: if nothing changed GitHub answers 304, which doesn't count against its rate limit.
-        // That's what lets the app check every few seconds.
-        using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest");
-        if (_etag != null) req.Headers.TryAddWithoutValidation("If-None-Match", _etag);
-        using var resp = await Http.SendAsync(req);
-        if (resp.StatusCode == System.Net.HttpStatusCode.NotModified) return Available;
-        if ((int)resp.StatusCode == 404) throw new Exception("No releases published yet.");
-        resp.EnsureSuccessStatusCode();
-        _etag = resp.Headers.ETag?.ToString();
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-        var root = doc.RootElement;
-        string tag = root.GetProperty("tag_name").GetString();
-        string relName = root.TryGetProperty("name", out var rn) ? rn.GetString() : null;
-        string notes = root.TryGetProperty("body", out var b) ? b.GetString() ?? "" : "";
-        JsonElement? pick = null;
-        foreach (var a in root.GetProperty("assets").EnumerateArray())
+        // 1) /releases/latest redirects to /releases/tag/<tag>
+        using var r1 = await NoRedirect.GetAsync($"https://github.com/{Owner}/{Repo}/releases/latest");
+        var loc = r1.Headers.Location?.ToString() ?? "";
+        int ti = loc.IndexOf("/releases/tag/", StringComparison.Ordinal);
+        if (ti < 0)
         {
-            var name = a.GetProperty("name").GetString() ?? "";
-            if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) { pick = a; break; }
-            if (pick == null && name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) pick = a;
+            if ((int)r1.StatusCode == 404 || loc.EndsWith("/releases", StringComparison.Ordinal)) throw new Exception("No releases published yet.");
+            throw new Exception($"GitHub answered {(int)r1.StatusCode}. Try again in a minute.");
         }
-        if (pick == null) throw new Exception("The latest release has no .exe or .zip attached.");
-        var asset = pick.Value;
-        long id = root.GetProperty("id").GetInt64();
-        DateTime published = root.TryGetProperty("published_at", out var pa) && pa.ValueKind == JsonValueKind.String ? pa.GetDateTime().ToUniversalTime() : DateTime.MinValue;
-        string assetName = asset.GetProperty("name").GetString();
+        string tag = Uri.UnescapeDataString(loc[(ti + "/releases/tag/".Length)..]);
+
+        // 2) the release's file list
+        var html = await Http.GetStringAsync($"https://github.com/{Owner}/{Repo}/releases/expanded_assets/{Uri.EscapeDataString(tag)}");
+        var links = System.Text.RegularExpressions.Regex.Matches(html, @"href=""(/[^""]+/releases/download/[^""]+\.(?:exe|zip))""", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            .Select(m => System.Net.WebUtility.HtmlDecode(m.Groups[1].Value)).Distinct().ToList();
+        string pickPath = links.FirstOrDefault(l => l.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) ?? links.FirstOrDefault();
+        if (pickPath == null) throw new Exception("The latest release has no .exe or .zip attached.");
+        string assetName = Uri.UnescapeDataString(pickPath[(pickPath.LastIndexOf('/') + 1)..]);
+        var dm = System.Text.RegularExpressions.Regex.Match(html, @"datetime=""([^""]+)""");
+        DateTime published = dm.Success && DateTime.TryParse(dm.Groups[1].Value, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var dt) ? dt : DateTime.UtcNow;
+        long id = StableId(tag + "|" + assetName);
 
         // The tag and title can be anything. Decide like this:
         // 1) already installed this exact release -> nothing to do
@@ -99,12 +104,14 @@ public static class Updater
         else newer = BuildTimeUtc is DateTime bt && published > bt.AddMinutes(10);
         if (!newer && id != Store.Settings.InstalledReleaseId) { Store.Settings.InstalledReleaseId = id; Store.SaveSettings(); } // remember: this one's not newer
 
-        var rel = new Release(ver ?? new Version(0, 0), string.IsNullOrWhiteSpace(relName) ? tag : relName, notes, asset.GetProperty("browser_download_url").GetString(), assetName, asset.GetProperty("size").GetInt64()) { Id = id };
+        var rel = new Release(ver ?? new Version(0, 0), tag, "", "https://github.com" + pickPath, assetName, 0) { Id = id };
         Available = newer ? rel : null;
         LastSeen = $"Latest on GitHub: {assetName} (published {published.ToLocalTime():MMM d, h:mm tt})";
-        Store.Log($"Update check: latest {assetName} id {id}, newer={newer} (running {App.VersionText})");
+        if (newer || _lastLogged != id) Store.Log($"Update check: latest {assetName} ({tag}), newer={newer} (running {App.VersionText})");
+        _lastLogged = id;
         return Available;
     }
+    static long _lastLogged;
 
     /// <summary>Background check shortly after startup and then every 6 hours.</summary>
     public static void StartAutoCheck()
@@ -123,8 +130,8 @@ public static class Updater
                         else Found?.Invoke();
                     }
                 }
-                catch (Exception ex) { Store.Log("Update check: " + ex.Message); }
-                await Task.Delay(TimeSpan.FromSeconds(Busy ? 60 : 10)); // unchanged checks are free (304), so poll fast
+                catch (Exception ex) { Store.Log("Update check: " + ex.Message); await Task.Delay(TimeSpan.FromMinutes(2)); } // back off on errors
+                await Task.Delay(TimeSpan.FromSeconds(Busy ? 60 : 30));
             }
         });
     }
