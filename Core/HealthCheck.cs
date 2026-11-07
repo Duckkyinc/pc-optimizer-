@@ -68,6 +68,12 @@ public static class CrashFinder
         }
         catch (Exception ex) { Store.Log("Crash finder (system log): " + ex.Message); }
 
+        // One driver reset logs several events (Display 4101 + nvlddmkm 13/14/153) within seconds: count it once.
+        var resets = crashes.Where(c => c.Kind == Kind.GpuReset).OrderBy(c => c.At).ToList();
+        crashes.RemoveAll(c => c.Kind == Kind.GpuReset);
+        DateTime lastReset = DateTime.MinValue;
+        foreach (var r in resets) { if ((r.At - lastReset).TotalSeconds > 60) crashes.Add(r); lastReset = r.At; }
+
         var games = new HashSet<string>(Games.All.SelectMany(g => g.ProcessNames), StringComparer.OrdinalIgnoreCase);
         var groups = new List<Group>();
         foreach (var g in crashes.GroupBy(c => (c.Kind, Name: c.Kind is Kind.App or Kind.Hang ? c.Name.ToLowerInvariant() : c.Kind.ToString())))
