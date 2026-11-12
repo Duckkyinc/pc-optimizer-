@@ -108,6 +108,12 @@ public static class PowerPlan
             if (!SetActive(prev)) SetActive(Balanced);
             Store.Backups.Remove("win.powerplan");
             Store.SaveBackups();
+        },
+        Reset = () =>
+        {
+            SetActive(Balanced);
+            Store.Backups.Remove("win.powerplan");
+            Store.SaveBackups();
         }
     };
 }

@@ -224,6 +224,13 @@ public static class Nvapi
             Store.Backups.Remove(id);
             Store.SaveBackups();
             Store.Log($"Reverted {id}");
+        },
+        Reset = () =>
+        {
+            Delete(settingId);
+            Store.Backups.Remove(id);
+            Store.SaveBackups();
+            Store.Log($"Reset {id} to NVIDIA default");
         }
     };
 }

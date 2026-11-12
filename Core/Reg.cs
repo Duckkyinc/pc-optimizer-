@@ -139,6 +139,19 @@ public static class Reg
     }
 
     /// <summary>Undo a tweak: restore from backup if we have one, otherwise fall back to Windows defaults.</summary>
+    /// <summary>Writes the Windows default for every value (delete when the default is "not set") and drops the backup.</summary>
+    public static void ResetToDefault(string tweakId, IEnumerable<RegSet> sets)
+    {
+        foreach (var s in sets)
+        {
+            if (s.Default == null) Delete(s.Hive, s.Path, s.Name);
+            else Set(s.Hive, s.Path, s.Name, s.Default, s.Kind);
+        }
+        Store.Backups.Remove(tweakId);
+        Store.SaveBackups();
+        Store.Log($"Reset {tweakId} to default");
+    }
+
     public static void RevertWithBackup(string tweakId, IEnumerable<RegSet> sets)
     {
         if (Store.Backups.TryGetValue(tweakId, out var bk))

@@ -29,6 +29,8 @@ public class TweakListPage : UserControl, IRefreshable
             var rec = UI.Btn("Turn on recommended", async (s, e) => await SetAll(true), accent: true, icon: "");
             rec.Margin = new Thickness(0);
             var undo = UI.Btn("Undo all", async (s, e) => await SetAll(false), icon: "");
+            var reset = UI.Btn("Reset", async (s, e) => await ResetAll((Button)s), icon: "\uE72C");
+            reset.ToolTip = "Reset everything on this page to the Windows / driver default";
             var view = UI.ViewSwitch();
 
             var search = new Grid { Width = 200, Height = 38, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -45,7 +47,7 @@ public class TweakListPage : UserControl, IRefreshable
                     : Items.Where(i => i.Title.Contains(q, StringComparison.OrdinalIgnoreCase) || i.Description.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
             };
 
-            foreach (var el in new FrameworkElement[] { rec, undo, view, search }) { DockPanel.SetDock(el, Dock.Right); el.VerticalAlignment = VerticalAlignment.Center; bar.Children.Add(el); }
+            foreach (var el in new FrameworkElement[] { rec, undo, reset, view, search }) { DockPanel.SetDock(el, Dock.Right); el.VerticalAlignment = VerticalAlignment.Center; bar.Children.Add(el); }
             Body.Children.Add(bar);
 
             _list = UI.TweakList(Items); // follows the Grid / List switch
@@ -55,6 +57,23 @@ public class TweakListPage : UserControl, IRefreshable
         Content = UI.PageScroll(Body);
         UpdateCount();
         _ = Task.WhenAll(Items.Select(i => i.Ready)).ContinueWith(_ => Dispatcher.BeginInvoke(UpdateCount));
+    }
+
+    /// <summary>Puts every setting on this page back to the factory default, including ones changed outside the app.</summary>
+    async Task ResetAll(Button b)
+    {
+        if (!UI.Confirm("Reset everything on this page to the default settings?\n\nThis puts Windows / driver settings back to how they come out of the box, even ones another app or guide changed.")) return;
+        b.IsEnabled = false;
+        try
+        {
+            foreach (var t in Items.Where(i => i.Available).ToList()) await t.ResetAsync();
+        }
+        finally { b.IsEnabled = true; }
+        var failed = Items.Where(i => i.Status?.StartsWith("Failed") == true).ToList();
+        if (failed.Count > 0)
+            UI.Info("Some settings couldn't be reset:\n\n" + string.Join("\n", failed.Select(f => $"• {f.Title}: {f.Status[8..]}")));
+        else
+            UI.Info(Items.Any(i => i.NeedsReboot) ? "Reset to default. Restart your PC to finish." : "Reset to default.");
     }
 
     async Task SetAll(bool on)

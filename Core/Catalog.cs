@@ -181,6 +181,7 @@ public static class Catalog
             read: () => (PowerValue(UsbSub, UsbSuspend) ?? 1).ToString(),
             apply: () => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {UsbSub} {UsbSuspend} 0"); Shell.Run("powercfg", "/setactive scheme_current"); },
             revert: prev => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {UsbSub} {UsbSuspend} {prev}"); Shell.Run("powercfg", "/setactive scheme_current"); },
+            def: "1",
             recommended: true));
 
         Windows.Add(CommandTweak("win.cstates", "CPU sleep states: Off (lowest input delay)",
@@ -190,6 +191,7 @@ public static class Catalog
             read: () => (PowerValue(ProcSub, IdleDisable) ?? 0).ToString(),
             apply: () => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {ProcSub} {IdleDisable} 1"); Shell.Run("powercfg", "/setactive scheme_current"); },
             revert: prev => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {ProcSub} {IdleDisable} {prev}"); Shell.Run("powercfg", "/setactive scheme_current"); },
+            def: "0",
             warning: "Your CPU runs hotter and uses much more power, even at idle. On AMD Ryzen and some Intel CPUs it can LOWER boost clocks and FPS. Use Auto-tune on the Benchmark tab to check. Not for laptops.", advanced: true));
 
         // ------------------------------------------------------------ NETWORK
@@ -239,6 +241,7 @@ public static class Catalog
             read: () => Ps("(Get-NetTCPSetting -SettingName Internet).AutoTuningLevelLocal").Trim(),
             apply: () => Shell.Run("netsh", "int tcp set global autotuninglevel=normal"),
             revert: prev => Shell.Run("netsh", $"int tcp set global autotuninglevel={NetshLevel(prev)}"),
+            def: "Normal",
             recommended: true));
 
         Network.Add(CommandTweak("net.rss", "Receive Side Scaling: On",
@@ -248,6 +251,7 @@ public static class Catalog
             read: () => Ps("(Get-NetOffloadGlobalSetting).ReceiveSideScaling").Trim(),
             apply: () => Shell.Run("netsh", "int tcp set global rss=enabled"),
             revert: prev => Shell.Run("netsh", $"int tcp set global rss={(prev.Equals("Disabled", StringComparison.OrdinalIgnoreCase) ? "disabled" : "enabled")}"),
+            def: "Enabled",
             recommended: true));
 
 
@@ -258,6 +262,7 @@ public static class Catalog
             read: () => string.IsNullOrEmpty(UroState()) ? "enabled" : UroState(),
             apply: () => Shell.Run("netsh", "int udp set global uro=disabled"),
             revert: prev => Shell.Run("netsh", $"int udp set global uro={(prev == "disabled" ? "disabled" : "enabled")}"),
+            def: "enabled",
             recommended: true, available: () => !string.IsNullOrEmpty(UroState())));
 
         Network.Add(Tweak.Registry("net.wulimit", "Limit Windows Update to 25% of your bandwidth",
@@ -288,6 +293,7 @@ public static class Catalog
             read: () => (PowerValue(WifiSub, WifiPower) ?? 0).ToString(),
             apply: () => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {WifiSub} {WifiPower} 0"); Shell.Run("powercfg", "/setactive scheme_current"); },
             revert: prev => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {WifiSub} {WifiPower} {prev}"); Shell.Run("powercfg", "/setactive scheme_current"); },
+            def: "0",
             recommended: true, available: () => WifiInterfaces().Any()));
 
         Network.Add(Tweak.Registry("wifi.adapter", "Wi-Fi adapter gaming settings",
@@ -480,7 +486,7 @@ public static class Catalog
 
     /// <summary>A tweak driven by commands: it reads the current value, saves it, and restores it exactly on undo.</summary>
     static Tweak CommandTweak(string id, string title, string desc, Impact impact, Func<bool> check, Func<string> read,
-        Action apply, Action<string> revert, bool recommended = false, string warning = null, Func<bool> available = null, bool advanced = false) => new()
+        Action apply, Action<string> revert, bool recommended = false, string warning = null, Func<bool> available = null, bool advanced = false, string def = null) => new()
     {
         Id = id, Title = title, Description = desc, Impact = impact, Recommended = recommended, Warning = warning, Advanced = advanced,
         IsAvailable = available ?? (() => true),
@@ -504,6 +510,15 @@ public static class Catalog
             Store.Backups.Remove(id);
             Store.SaveBackups();
             Store.Log($"Reverted {id}");
+        },
+        Reset = () =>
+        {
+            if (def != null) revert(def);
+            else { var prev = Store.Backups.TryGetValue(id, out var b) ? b.Extra.GetValueOrDefault("previous") : null; if (!string.IsNullOrWhiteSpace(prev)) revert(prev); }
+            ClearCmdCache();
+            Store.Backups.Remove(id);
+            Store.SaveBackups();
+            Store.Log($"Reset {id} to default");
         }
     };
 

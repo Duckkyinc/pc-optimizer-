@@ -21,6 +21,9 @@ public class Tweak
     public Func<bool> IsApplied { get; init; }
     public Action Apply { get; init; }
     public Action Revert { get; init; }
+    /// <summary>Puts the setting back to the Windows / driver factory default (not just the pre-app value). Falls back to Revert.</summary>
+    public Action Reset { get; init; }
+    public void ResetToDefault() => (Reset ?? Revert)();
 
     public string ImpactLabel => Impact switch
     {
@@ -45,6 +48,7 @@ public class Tweak
             IsApplied = () => { var l = sets().ToList(); return l.Count > 0 && l.All(Reg.Matches); },
             Apply = () => { Reg.ApplyWithBackup(id, sets()); after?.Invoke(); },
             Revert = () => { Reg.RevertWithBackup(id, sets()); after?.Invoke(); },
+            Reset = () => { Reg.ResetToDefault(id, sets()); after?.Invoke(); },
         };
     }
 
@@ -125,6 +129,33 @@ public class TweakVM : Observable
         _checking = false;
         Raise(nameof(IsOn));
         Raise(nameof(CanToggle));
+    }
+
+    /// <summary>Back to the Windows / driver default, whether or not this app changed it.</summary>
+    public async Task ResetAsync()
+    {
+        if (!Available || Busy) return;
+        Busy = true;
+        Status = "Resetting...";
+        try
+        {
+            await Task.Run(() => Tweak.ResetToDefault());
+            Status = NeedsReboot ? "Default - restart to finish" : "Default";
+        }
+        catch (Exception ex)
+        {
+            Store.Log($"Reset failed for {Tweak.Id}: {ex}");
+            Status = "Failed: " + ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+            await Task.Run(() => { try { _isOn = Tweak.IsApplied(); } catch { _isOn = false; } });
+            _checking = false;
+            Raise(nameof(IsOn));
+            Raise(nameof(CanToggle));
+            AnyChanged?.Invoke();
+        }
     }
 
     public async Task SetAsync(bool on, bool quiet = false)
