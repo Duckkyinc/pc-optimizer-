@@ -102,7 +102,15 @@ public static class StutterFinder
         }
         if (pid == 0) { SetStatus(ct.IsCancellationRequested ? "Cancelled." : "No game found within 5 minutes."); return; }
 
-        // 2) record frames + process activity
+        // 2) record frames + process activity. Run this app below normal priority while recording so it always yields to the game.
+        var me = Process.GetCurrentProcess();
+        var oldPrio = me.PriorityClass;
+        try { me.PriorityClass = ProcessPriorityClass.BelowNormal; } catch { }
+        try { RecordAndAnalyze(seconds, ct, pid, game); } finally { try { me.PriorityClass = oldPrio; } catch { } }
+    }
+
+    static void RecordAndAnalyze(int seconds, CancellationToken ct, int pid, string game)
+    {
         var frames = new List<DateTime>(seconds * 300);
         var gate = new object();
         FpsMonitor.FrameHook = (p, ts) => { if (p == pid) lock (gate) frames.Add(ts); };
@@ -183,6 +191,7 @@ public static class StutterFinder
             foreach (var h in hits)
                 foreach (var (p, v) in h.P)
                 {
+                    if (p == Environment.ProcessId || SelfInstall.IsOurProcess(v.Name)) continue; // our own recording work, not a cause
                     double extra = v.Cpu - (baseCpu.TryGetValue(v.Name, out var bc) ? bc : 0);
                     score.TryGetValue(v.Name, out var cur);
                     score[v.Name] = (Math.Max(cur.Cpu, extra), Math.Max(cur.Io, v.Io), p == gamePid);
