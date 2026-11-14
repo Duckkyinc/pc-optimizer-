@@ -89,6 +89,7 @@ public class AppSettings
     public bool ProBalance { get; set; } = true;
     public bool TrafficShaper { get; set; } = true;
     public bool QosTagsCleared { get; set; }
+    public bool CStatesRestored { get; set; }
     /// <summary>null = decide automatically (on for low-end PCs).</summary>
     public bool? LowEndMode { get; set; } = true;
     public bool FpsOverlay { get; set; }

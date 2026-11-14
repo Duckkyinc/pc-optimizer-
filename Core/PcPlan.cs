@@ -38,8 +38,8 @@ public static class PcPlan
 
         // ---- power
         Rule("win.powerplan", !laptop, laptop ? "Laptop: Game Boost already switches to max power only while you play, so your battery lasts." : "Keeps the CPU at full speed. One of the biggest real gains.");
-        Rule("win.cstates", !laptop && !ryzen && !lowEnd && threads >= 8,
-            laptop ? "Laptop: would make it run hot and throttle." : ryzen ? "Ryzen CPUs boost higher with sleep states on. Turning them off can LOWER FPS." : lowEnd || threads < 8 ? "Uses a lot of power for a tiny gain on your CPU." : "Lowest input delay on a desktop with your CPU.");
+        Rule("win.cstates", false,
+            "Keeps the CPU at full speed and voltage all the time, so it can idle at 80°C+. The input-delay gain is too small to be worth that heat.");
         Rule("win.usbsuspend", !laptop, laptop ? "Laptop: USB power saving helps battery life." : "Stops your mouse/keyboard USB ports from sleeping, which can cause hitches.");
         Rule("nv.power", !laptop, laptop ? "Laptop: keeps the GPU from running at full power on battery." : "Stops your GPU from downclocking mid-game.");
         Rule("amd.ulps", !laptop, laptop ? "Laptop: ULPS saves battery." : "Stops your Radeon dropping into deep sleep, which can cause stutter.");

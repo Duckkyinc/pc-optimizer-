@@ -144,6 +144,18 @@ public partial class App : Application
             Dispatcher.BeginInvoke(() => Tray.Exit());
         }) { IsBackground = true, Name = "update-handoff" }.Start();
         Task.Run(TrafficShaper.Cleanup);
+        // v2.7.8: 'CPU sleep states: Off' kept CPUs at full speed and 80°C+ at idle. Turn sleep states back on once.
+        if (!Store.Settings.CStatesRestored)
+            Task.Run(() =>
+            {
+                try
+                {
+                    var t = Catalog.All.FirstOrDefault(x => x.Id == "win.cstates");
+                    if (t != null && (Store.Backups.ContainsKey("win.cstates") || t.IsApplied())) { t.ResetToDefault(); Store.Log("Turned CPU sleep states back on"); }
+                    Store.Settings.CStatesRestored = true; Store.SaveSettings();
+                }
+                catch (Exception ex) { Store.Log("C-state restore: " + ex.Message); }
+            });
         // v2.7.7: per-game DSCP tags made ping worse on some ISPs/routers; take them off once (users can turn them back on per game).
         if (!Store.Settings.QosTagsCleared)
             Task.Run(() =>

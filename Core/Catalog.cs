@@ -192,7 +192,7 @@ public static class Catalog
             apply: () => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {ProcSub} {IdleDisable} 1"); Shell.Run("powercfg", "/setactive scheme_current"); },
             revert: prev => { Shell.Run("powercfg", $"/setacvalueindex scheme_current {ProcSub} {IdleDisable} {prev}"); Shell.Run("powercfg", "/setactive scheme_current"); },
             def: "0",
-            warning: "Your CPU runs hotter and uses much more power, even at idle. On AMD Ryzen and some Intel CPUs it can LOWER boost clocks and FPS. Use Auto-tune on the Benchmark tab to check. Not for laptops.", advanced: true));
+            warning: "Your CPU stays at full speed all the time and can idle at 70-90°C on hot chips (Intel 13th/14th gen). It uses much more power, even at idle. On AMD Ryzen and some Intel CPUs it can LOWER boost clocks and FPS. Use Auto-tune on the Benchmark tab to check. Not for laptops.", advanced: true));
 
         // ------------------------------------------------------------ NETWORK
         Network.Add(Tweak.Registry("net.throttle", "Turn off network throttling",
@@ -611,8 +611,8 @@ public static class Catalog
 
     public static List<Preset> Presets => new()
     {
-        new("competitive", "Competitive", "\uE945", "Max FPS and the lowest input delay. Everything that helps, including the strong settings (V-Sync off, CPU sleep states off on desktops, adapter latency).",
-            () => Visible.Where(t => (t.Recommended && !t.Advanced) || new[] { "nv.vsync", "win.hags", "net.adapter", "wifi.adapter" }.Contains(t.Id) || (t.Id == "win.cstates" && !SysInfo.HasBattery && !SysInfo.CpuName.Contains("Ryzen", StringComparison.OrdinalIgnoreCase))),
+        new("competitive", "Competitive", "\uE945", "Max FPS and the lowest input delay. Everything that helps, including the strong settings (V-Sync off, adapter latency).",
+            () => Visible.Where(t => (t.Recommended && !t.Advanced) || new[] { "nv.vsync", "win.hags", "net.adapter", "wifi.adapter" }.Contains(t.Id)),
             () => Enumerable.Empty<Tweak>()),
         new("balanced", "Balanced", "\uE9F5", "All the recommended tweaks: big real gains with no heat or power downsides. Best for most people.",
             () => Visible.Where(t => t.Recommended && !t.Advanced),

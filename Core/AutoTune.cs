@@ -17,7 +17,7 @@ public static class AutoTune
     /// <summary>Tweaks that change instantly (no restart) and can change FPS either way depending on the PC.</summary>
     static readonly (string Id, bool Latency)[] Candidates =
     {
-        ("win.powerplan", false), ("nv.power", false), ("win.cstates", true), ("nv.lowlatency", true),
+        ("win.powerplan", false), ("nv.power", false), ("nv.lowlatency", true),
     };
 
     public static async Task<List<Result>> RunAsync()
