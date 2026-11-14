@@ -65,6 +65,7 @@ public static class Benchmark
     /// <summary>Runs the benchmark on its own thread. Returns null if cancelled or failed (error in <paramref name="error"/>).</summary>
     public static Task<(SimRun Run, string Error)> RunAsync(bool quick)
     {
+        if (Running) return Task.FromResult<(SimRun, string)>((null, "A test is already running."));
         var tcs = new TaskCompletionSource<(SimRun, string)>();
         var t = new Thread(() =>
         {

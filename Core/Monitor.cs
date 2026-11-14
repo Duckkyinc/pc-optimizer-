@@ -32,7 +32,9 @@ public static class FpsMonitor
     /// <summary>Optional listener for every presented frame (pid, absolute time). Used by the Stutter Finder.</summary>
     public static Action<int, DateTime> FrameHook;
 
-    public static void Start()
+    static readonly object StartGate = new();
+    public static void Start() { lock (StartGate) StartCore(); }
+    static void StartCore()
     {
         if (Running) return;
         Error = null;
@@ -164,7 +166,9 @@ public static class HwMonitor
     static long _nvAt, _nvLastUse;
     static System.Threading.Timer _nvIdle;
 
-    static void EnsureNvSmi()
+    static readonly object NvGate = new();
+    static void EnsureNvSmi() { lock (NvGate) EnsureNvSmiCore(); }
+    static void EnsureNvSmiCore()
     {
         _nvLastUse = Environment.TickCount64;
         if (_nvProc != null && !_nvProc.HasExited) return;
@@ -179,7 +183,7 @@ public static class HwMonitor
             // stop it when nobody has asked for stats for a while
             _nvIdle ??= new System.Threading.Timer(_ =>
             {
-                if (Environment.TickCount64 - _nvLastUse > 4000) StopNvSmi();
+                try { if (Environment.TickCount64 - _nvLastUse > 4000) lock (NvGate) StopNvSmi(); } catch { }
             }, null, 3000, 3000);
         }
         catch (Exception ex) { Store.Log("nvidia-smi failed: " + ex.Message); _nvProc = null; }

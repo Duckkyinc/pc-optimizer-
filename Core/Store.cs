@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Threading;
 using System.IO;
 using System.Text.Json;
 
@@ -119,13 +121,13 @@ public static class Store
     static readonly object Gate = new();
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
-    public static Dictionary<string, TweakBackup> Backups { get; private set; } = new();
+    public static BackupMap Backups { get; private set; } = new();
     public static AppSettings Settings { get; private set; } = new();
 
     public static void Load()
     {
         Directory.CreateDirectory(Dir);
-        Backups = Read<Dictionary<string, TweakBackup>>(BackupFile) ?? new();
+        Backups = new BackupMap(Read<Dictionary<string, TweakBackup>>(BackupFile) ?? new());
         Settings = Read<AppSettings>(SettingsFile) ?? new();
         if (!Settings.AutoBoostDefaulted) { Settings.AutoBoost = true; Settings.AutoBoostDefaulted = true; SaveSettings(); } // Game Boost is on by default
     }
@@ -140,14 +142,24 @@ public static class Store
     {
         lock (Gate)
         {
-            Directory.CreateDirectory(Dir);
-            var tmp = file + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(value, Json));
-            File.Move(tmp, file, true);
+            // a save failing (file locked by antivirus, disk busy) must never crash the app; retry briefly, then log
+            for (int i = 0; i < 3; i++)
+            {
+                try
+                {
+                    Directory.CreateDirectory(Dir);
+                    var tmp = file + ".tmp";
+                    File.WriteAllText(tmp, JsonSerializer.Serialize(value, Json));
+                    File.Move(tmp, file, true);
+                    return;
+                }
+                catch (Exception ex) when (i < 2) { _ = ex; Thread.Sleep(50); }
+                catch (Exception ex) { try { File.AppendAllText(LogFile, $"{DateTime.Now:s} Save failed for {Path.GetFileName(file)}: {ex.Message}\n"); } catch { } }
+            }
         }
     }
 
-    public static void SaveBackups() => Write(BackupFile, Backups);
+    public static void SaveBackups() => Write(BackupFile, Backups.Snapshot());
     public static void SaveSettings() => Write(SettingsFile, Settings);
 
     public static void Log(string message)
@@ -162,4 +174,14 @@ public static class Store
         }
         catch { /* logging must never crash the app */ }
     }
+}
+
+
+/// <summary>Tweak backups, safe to read and change from several threads at once (spamming switches runs them in parallel).</summary>
+public class BackupMap : ConcurrentDictionary<string, TweakBackup>
+{
+    public BackupMap() : base(StringComparer.Ordinal) { }
+    public BackupMap(IDictionary<string, TweakBackup> src) : base(src, StringComparer.Ordinal) { }
+    public bool Remove(string key) => TryRemove(key, out _);
+    public Dictionary<string, TweakBackup> Snapshot() => new(this);
 }

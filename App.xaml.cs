@@ -187,12 +187,17 @@ public partial class App : Application
         Updater.StartAutoCheck();
     }
 
+    static bool _errorShowing;
     void OnUiError(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Store.Log("UI error: " + e.Exception);
-        Overdrive.Pages.Dialog.Show("Something went wrong, but PC Optimizer kept running.\n\n" + e.Exception.Message +
-                        $"\n\nDetails were saved to:\n{Store.LogFile}", "PC Optimizer", MessageBoxButton.OK, MessageBoxImage.Warning);
         e.Handled = true;
+        if (_errorShowing) return; // spam-clicking can raise many at once; show one, log the rest
+        _errorShowing = true;
+        try { Overdrive.Pages.Dialog.Show("Something went wrong, but PC Optimizer kept running.\n\n" + e.Exception.Message +
+                        $"\n\nDetails were saved to:\n{Store.LogFile}", "PC Optimizer", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch { }
+        finally { _errorShowing = false; }
     }
 
     protected override void OnExit(ExitEventArgs e)

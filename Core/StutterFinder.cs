@@ -292,10 +292,13 @@ public static class LatencyCheck
         return ("", "");
     }
 
+    static int _latRunning;
     public static Task<Result> RunAsync(int seconds, IProgress<double> progress, CancellationToken ct)
     {
+        if (Interlocked.Exchange(ref _latRunning, 1) == 1) return Task.FromException<Result>(new InvalidOperationException("The check is already running."));
         return Task.Run(() =>
         {
+          try {
             var drivers = Drivers();
             var stats = new Dictionary<string, (long Count, double Max, double Sum)>(StringComparer.OrdinalIgnoreCase);
             long events = 0;
@@ -333,6 +336,7 @@ public static class LatencyCheck
             }).OrderByDescending(x => x.MaxUs).ToList();
             var top = list.FirstOrDefault();
             return new Result(sw.Elapsed.TotalSeconds, top?.MaxUs ?? 0, top?.Driver, list, events);
-        }, ct);
+          } finally { Interlocked.Exchange(ref _latRunning, 0); }
+        });
     }
 }

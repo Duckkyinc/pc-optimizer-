@@ -60,15 +60,17 @@ public class TweakListPage : UserControl, IRefreshable
     }
 
     /// <summary>Puts every setting on this page back to the factory default, including ones changed outside the app.</summary>
+    bool _bulk;
     async Task ResetAll(Button b)
     {
+        if (_bulk) return;
         if (!UI.Confirm("Reset everything on this page to the default settings?\n\nThis puts Windows / driver settings back to how they come out of the box, even ones another app or guide changed.")) return;
-        b.IsEnabled = false;
+        b.IsEnabled = false; _bulk = true;
         try
         {
             foreach (var t in Items.Where(i => i.Available).ToList()) await t.ResetAsync();
         }
-        finally { b.IsEnabled = true; }
+        finally { b.IsEnabled = true; _bulk = false; }
         var failed = Items.Where(i => i.Status?.StartsWith("Failed") == true).ToList();
         if (failed.Count > 0)
             UI.Info("Some settings couldn't be reset:\n\n" + string.Join("\n", failed.Select(f => $"• {f.Title}: {f.Status[8..]}")));
@@ -77,6 +79,13 @@ public class TweakListPage : UserControl, IRefreshable
     }
 
     async Task SetAll(bool on)
+    {
+        if (_bulk) return;
+        _bulk = true;
+        try { await SetAllCore(on); } finally { _bulk = false; }
+    }
+
+    async Task SetAllCore(bool on)
     {
         var targets = on ? Items.Where(i => i.Recommended && !i.Advanced && i.Available && !i.IsOn)
                          : Items.Where(i => i.IsOn);

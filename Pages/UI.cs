@@ -111,7 +111,17 @@ public static class UI
             content = sp;
         }
         var b = new Button { Content = content, Style = Res<Style>(style ?? (accent ? "AccentButton" : "GhostButton")), Margin = new Thickness(0, 0, 10, 0) };
-        if (click != null) b.Click += click;
+        if (click != null)
+        {
+            long last = 0;
+            b.Click += (s, e) =>
+            {
+                long now = Environment.TickCount64;
+                if (now - last < 600) return; // ignore spam clicks
+                last = now;
+                click(s, e);
+            };
+        }
         return b;
     }
 
