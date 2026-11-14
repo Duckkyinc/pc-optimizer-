@@ -128,7 +128,7 @@ public class AppsPage : UserControl, IRefreshable
     // ------------------------------------------------------------------ sampling
     async Task Update()
     {
-        if (_busy) return;
+        if (_busy || BoostMode.InGame) return;
         _busy = true;
         try { _groups = await Task.Run(Snapshot); Render(); }
         catch (Exception ex) { Store.Log("Apps page: " + ex.Message); }

@@ -143,7 +143,7 @@ public static class Catalog
             Impact.Situational, new[]
             {
                 HKLM(@"SYSTEM\CurrentControlSet\Control\Session Manager\kernel", "GlobalTimerResolutionRequests", 1),
-            }, recommended: true, reboot: true));
+            }, reboot: true, warning: "Results vary by PC: some get smoother frame pacing, some lose a few FPS. Test with the Benchmark tab."));
 
         Windows.Add(Tweak.Registry("win.gpumsi", "GPU MSI interrupt mode",
             "Switches your graphics card to Message Signaled Interrupts, a faster way for the GPU to signal the CPU, instead of old shared interrupt lines. Can lower DPC latency and micro-stutter. Many new drivers already do this; if so, this switch shows as already on.",

@@ -176,6 +176,7 @@ public class DashboardPage : UserControl, IRefreshable
 
     void Tick()
     {
+        if (BoostMode.InGame) return; // don't poll the CPU/GPU while you play
         var cpu = SysInfo.CpuUsage();
         _cpuBar.Value = cpu; _cpuText.Text = $"{cpu:0}% in use";
         var (used, pct) = SysInfo.RamUsage();

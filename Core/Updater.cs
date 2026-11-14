@@ -121,6 +121,8 @@ public static class Updater
             await Task.Delay(TimeSpan.FromSeconds(3));
             while (true)
             {
+                // never use the network while a game is running (it could cost ping); check again right after
+                while (BoostMode.ActiveGame != null) await Task.Delay(TimeSpan.FromSeconds(10));
                 try
                 {
                     if (Store.Settings.AutoUpdateCheck && await CheckAsync() is Release r)

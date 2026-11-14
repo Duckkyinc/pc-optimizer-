@@ -51,7 +51,7 @@ public static class LiveMonitor
         get
         {
             var w = Application.Current?.MainWindow;
-            bool tabOnScreen = PageVisible && w != null && w.IsVisible && w.WindowState != WindowState.Minimized;
+            bool tabOnScreen = PageVisible && w != null && w.IsVisible && w.WindowState != WindowState.Minimized && !BoostMode.InGame;
             return tabOnScreen || Store.Settings.FpsOverlay || Benchmarking || StutterFinder.Active;
         }
     }

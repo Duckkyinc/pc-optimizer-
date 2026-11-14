@@ -144,6 +144,19 @@ public partial class App : Application
             Dispatcher.BeginInvoke(() => Tray.Exit());
         }) { IsBackground = true, Name = "update-handoff" }.Start();
         Task.Run(TrafficShaper.Cleanup);
+        // v2.7.7: per-game DSCP tags made ping worse on some ISPs/routers; take them off once (users can turn them back on per game).
+        if (!Store.Settings.QosTagsCleared)
+            Task.Run(() =>
+            {
+                try
+                {
+                    var ids = Store.Backups.Keys.Where(k => k.StartsWith("game.") && k.EndsWith(".qos")).ToList();
+                    foreach (var id in ids) Reg.RevertWithBackup(id, Array.Empty<RegSet>());
+                    if (ids.Count > 0) Shell.Run("gpupdate", "/target:computer /force", 90000);
+                    Store.Settings.QosTagsCleared = true; Store.SaveSettings();
+                }
+                catch (Exception ex) { Store.Log("QoS cleanup: " + ex.Message); }
+            });
         BoostMode.Start();
         Pages.LiveMonitor.Start();
 

@@ -813,8 +813,8 @@ public static class Games
                 "Tags the game's network packets with the highest priority class (DSCP 46, the same tag used for voice calls). Routers with QoS / 'gaming priority' send them first, so a download or a Netflix stream on your network causes fewer ping spikes. This is the same idea as ExitLag's 'traffic shaper', built into Windows.",
                 Impact.Situational,
                 () => Has() ? QosSets(g, exe()) : Array.Empty<RegSet>(),
-                recommended: true, available: Has, after: () => Shell.Run("gpupdate", "/target:computer /force", 90000),
-                warning: "Only helps if your router respects QoS tags (most gaming routers do, some ISP routers ignore them). It never makes things worse."),
+                available: Has, after: () => Shell.Run("gpupdate", "/target:computer /force", 90000),
+                warning: "Only helps if your router respects QoS tags. Some ISPs and routers handle tagged packets badly, which can make ping worse. If your ping goes up, turn this off."),
 
         };
     }

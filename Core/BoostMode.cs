@@ -19,6 +19,19 @@ public static class BoostMode
     public static string Status { get; private set; } = "Idle";
     public static GameDef ActiveGame => _active;
 
+    /// <summary>
+    /// True while you're playing (a game is running and this app's window isn't the one you're using).
+    /// Live stats, GPU polling and update checks pause then, so the app costs your game nothing.
+    /// </summary>
+    public static bool InGame
+    {
+        get
+        {
+            if (_active == null) return false;
+            try { var w = System.Windows.Application.Current?.MainWindow; return w == null || !w.IsActive; } catch { return true; }
+        }
+    }
+
     public static void Start()
     {
         _timer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -72,7 +85,11 @@ public static class BoostMode
     {
         _active = g;
         var notes = new List<string>();
-        try
+        // AMD Ryzen (especially X3D chips, which park cores to pick the cache CCD) and laptops run games best on Balanced.
+        // Forcing a max-performance plan there can lower boost clocks and FPS, so leave them alone.
+        bool skipPlan = SysInfo.CpuName.Contains("Ryzen", StringComparison.OrdinalIgnoreCase) || SysInfo.HasBattery;
+        if (skipPlan) _planBefore = null;
+        else try
         {
             _planBefore = PowerPlan.ActiveGuid();
             var best = PowerPlan.EnsureBestPlan();
@@ -87,7 +104,8 @@ public static class BoostMode
 
         try
         {
-            if (Native.NtSetTimerResolution(5000, true, out _) == 0) { _timerSet = true; notes.Add("0.5ms timer"); }
+            if (Catalog.All.FirstOrDefault(t => t.Id == "win.timerres")?.IsApplied() == true
+                && Native.NtSetTimerResolution(5000, true, out _) == 0) { _timerSet = true; notes.Add("0.5ms timer"); }
         }
         catch { }
 
